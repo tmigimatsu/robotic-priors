@@ -46,7 +46,5 @@ compile_commands.json
 *~
 
 # External libraries
-external/*
-!external/NatNetLinux.git
-sai2-simulation
+external/*.zip
 resources
