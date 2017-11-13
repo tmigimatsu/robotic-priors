@@ -4,6 +4,7 @@
 // SAI
 #include <model/ModelInterface.h>
 #include <simulation/SimulationInterface.h>
+#include <graphics/GraphicsInterface.h>
 #include "redis/RedisClient.h"
 #include "timer/LoopTimer.h"
 

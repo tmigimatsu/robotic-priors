@@ -63,3 +63,4 @@ set(SAI2_LIBRARIES
 add_subdirectory(src/demo_project)
 add_subdirectory(src/simulation)
 add_subdirectory(src/visualization)
+add_subdirectory(src/openai_gym)

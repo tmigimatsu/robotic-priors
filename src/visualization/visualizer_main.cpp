@@ -7,7 +7,7 @@
 #include <simulation/SimulationInterface.h>
 #include <graphics/GraphicsInterface.h>
 #include <graphics/ChaiGraphics.h>
-#include "redis/RedisClient.h"
+#include <redis/RedisClient.h>
 
 #include <GLFW/glfw3.h> //must be loaded after loading opengl/glew
 
@@ -218,6 +218,12 @@ int main(int argc, char** argv) {
 	/********** End Custom Visualizer Code **********/
 #endif // ENABLE_TRAJECTORIES
 
+	// Screenshot
+	GLubyte *pixels = new GLubyte[3 * screenW * screenH];
+	Eigen::MatrixXi mat_screen_r(screenH, screenW);
+	Eigen::MatrixXi mat_screen_g(screenH, screenW);
+	Eigen::MatrixXi mat_screen_b(screenH, screenW);
+
     // while window is open:
     while (!glfwWindowShouldClose(window))
 	{
@@ -267,6 +273,19 @@ int main(int argc, char** argv) {
 
 		// wait until all GL commands are completed
 		glFinish();
+
+		// Screenshot
+		glReadPixels(0, 0, screenW, screenH, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+		for (int y = 0; y < screenH; y++) {
+			for (int x = 0; x < screenW; x++) {
+				mat_screen_r(y, x) = static_cast<int>(pixels[3 * (screenW * y + x) + 0]);
+				mat_screen_g(y, x) = static_cast<int>(pixels[3 * (screenW * y + x) + 1]);
+				mat_screen_b(y, x) = static_cast<int>(pixels[3 * (screenW * y + x) + 2]);
+			}
+		}
+		redis_client.setEigenMatrix("R", mat_screen_r);
+		redis_client.setEigenMatrix("G", mat_screen_g);
+		redis_client.setEigenMatrix("B", mat_screen_b);
 
 		// check for any OpenGL errors
 		GLenum err;
