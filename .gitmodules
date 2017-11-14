@@ -1,12 +1,12 @@
-[submodule "external/sai2-common.git"]
-	path = external/sai2-common.git
+[submodule "lib/sai2-common.git"]
+	path = lib/sai2-common.git
 	url = https://github.com/manips-sai/sai2-common.git
-[submodule "external/sai2-simulation.git"]
-	path = external/sai2-simulation.git
+[submodule "lib/sai2-simulation.git"]
+	path = lib/sai2-simulation.git
 	url = https://github.com/manips-sai/sai2-simulation.git
-[submodule "external/NatNetLinux.git"]
-	path = external/NatNetLinux.git
+[submodule "lib/NatNetLinux.git"]
+	path = lib/NatNetLinux.git
 	url = https://github.com/tmigimatsu/NatNetLinux.git
-[submodule "external/chai3d.git"]
-	path = external/chai3d.git
+[submodule "lib/chai3d.git"]
+	path = lib/chai3d.git
 	url = https://github.com/chai3d/chai3d
