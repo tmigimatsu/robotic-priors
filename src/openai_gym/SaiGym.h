@@ -8,6 +8,8 @@
 // Standard
 #include <string>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 
 // External
 #include <Eigen/Core>
@@ -26,11 +28,12 @@ public:
 	       const std::string &robot_name,
 		   std::shared_ptr<Simulation::SimulationInterface> sim,
 		   std::shared_ptr<Graphics::GraphicsInterface> graphics) :
-		robot(robot),
+		robot_(robot),
 		dof(robot->dof()),
 		kRobotName(robot_name),
 		sim(sim),
-		graphics(dynamic_cast<Graphics::ChaiGraphics *>(graphics->_graphics_internal)),
+		thread_graphics(&SaiGym::graphicsMain, this, graphics),
+		// graphics(dynamic_cast<Graphics::ChaiGraphics *>(graphics->_graphics_internal)),
 		KEY_COMMAND_TORQUES (RedisServer::KEY_PREFIX + robot_name + "::actuators::fgc"),
 		KEY_EE_POS          (RedisServer::KEY_PREFIX + robot_name + "::tasks::ee_pos"),
 		KEY_EE_POS_DES      (RedisServer::KEY_PREFIX + robot_name + "::tasks::ee_pos_des"),
@@ -96,7 +99,7 @@ protected:
 
 	const int kControlFreq = 1000;         // 1 kHz control loop
 	const int kSimulationFreq = 10000;         // 1 kHz control loop
-	const int kEnvironmentFreq = 10;         // 1 kHz control loop
+	const int kEnvironmentFreq = 100;         // 1 kHz control loop
 	const int kInitializationPause = 1e6;  // 1ms pause before starting control loop
 
 	const std::string kRedisHostname = "127.0.0.1";
@@ -128,16 +131,24 @@ protected:
 	void readRedisValues();
 	void updateModel();
 	void writeRedisValues();
-	void publishEnvironment();
+	// void publishEnvironment();
+	void graphicsMain(std::shared_ptr<Graphics::GraphicsInterface> graphics);
 	ControllerStatus computeJointSpaceControlTorques();
 	ControllerStatus computeOperationalSpaceControlTorques();
 
 	/***** Member variables *****/
 
 	// Robot
-	const std::shared_ptr<Model::ModelInterface> robot;
+	const std::shared_ptr<Model::ModelInterface> robot_;
 	const std::shared_ptr<Simulation::SimulationInterface> sim;
 	Graphics::ChaiGraphics *graphics;
+
+	bool update_graphics_ = false;
+	std::mutex mutex_graphics_;
+	std::mutex mutex_robot_;
+	std::condition_variable cv_;
+	std::thread thread_simulator;
+	std::thread thread_graphics;
 
 	// Redis
 	RedisClient redis_;
@@ -161,11 +172,6 @@ protected:
 	Eigen::Vector3d x_des_, dx_des_;
 
 	// Graphics
-	Eigen::Vector3d camera_pos_;
-	Eigen::Vector3d camera_vertical_;
-	Eigen::Vector3d camera_lookat_;
-	GLFWwindow *window_;
-	GLubyte *gl_buffer_ = new GLubyte[3 * kWindowWidth * kWindowHeight];
 	Eigen::MatrixXi buffer_r_ = Eigen::MatrixXi(kWindowHeight, kWindowWidth);
 	Eigen::MatrixXi buffer_g_ = Eigen::MatrixXi(kWindowHeight, kWindowWidth);
 	Eigen::MatrixXi buffer_b_ = Eigen::MatrixXi(kWindowHeight, kWindowWidth);
