@@ -1,14 +1,9 @@
 # Set executable name
 set(EXECUTABLE_NAME sai_gym)
 
-# Find source files
-file(GLOB_RECURSE ALL_SOURCE_FILES
-	*.cpp
-)
-
 # Create executable
 add_executable(${EXECUTABLE_NAME}
-	${ALL_SOURCE_FILES}
+	${CMAKE_CURRENT_SOURCE_DIR}/gym_sai2/envs/CSaiEnv.cpp
 )
 
 # Link libraries

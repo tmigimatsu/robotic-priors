@@ -1,4 +1,4 @@
-#include "SaiGym.h"
+#include "CSaiEnv.h"
 
 #include <iostream>
 #include <fstream>
@@ -13,25 +13,40 @@ static inline bool isnan(const Eigen::MatrixBase<Derived>& x) {
 	return (x.array() != x.array()).any();
 }
 
-using namespace std;
-
 static void glfwError(int error, const char* description) {
-	cerr << "GLFW Error: " << description << endl;
+	std::cerr << "GLFW Error: " << description << std::endl;
 	exit(1);
 }
 
+void CSaiEnv::reset() {
+	controller_counter_ = 0;
+	command_torques_.setZero();
+
+	// Home configuration for Kuka iiwa
+	q_des_ << 90, -30, 0, 60, 0, -90, -60;
+	q_des_ *= M_PI / 180.0;
+	dq_des_.setZero();
+
+	sim->setJointPositions(kRobotName, q_des_);
+	sim->setJointVelocities(kRobotName, dq_des_);
+
+	// Desired end effector position
+	x_des_ << -0.1, 0.4, 0.7;
+	dx_des_.setZero();
+}
+
 /**
- * SaiGym::readRedisValues()
+ * CSaiEnv::readRedisValues()
  * ------------------------------
  * Retrieve all read keys from Redis.
  */
-void SaiGym::readRedisValues() {
+void CSaiEnv::readRedisValues() {
 	// Read from Redis current sensor values
 	sim->getJointPositions(kRobotName, robot_->_q);
 	sim->getJointVelocities(kRobotName, robot_->_dq);
 }
 
-void SaiGym::graphicsMain(std::shared_ptr<Graphics::GraphicsInterface> graphics) {
+void CSaiEnv::graphicsMain(std::shared_ptr<Graphics::GraphicsInterface> graphics) {
 	Graphics::ChaiGraphics *chai = dynamic_cast<Graphics::ChaiGraphics *>(graphics->_graphics_internal);
 
 	// Start visualization
@@ -49,8 +64,6 @@ void SaiGym::graphicsMain(std::shared_ptr<Graphics::GraphicsInterface> graphics)
     glfwMakeContextCurrent(window);
 	glfwSwapInterval(1);
 	chai->setCameraPose(kCameraName, camera_pos, camera_vertical, camera_lookat);
-
-	std::unique_ptr<GLubyte[]> gl_buffer{new GLubyte[3 * kWindowWidth * kWindowHeight]};
 
 	while (g_runloop && !glfwWindowShouldClose(window)) {
 		// Wait for update notification
@@ -71,15 +84,10 @@ void SaiGym::graphicsMain(std::shared_ptr<Graphics::GraphicsInterface> graphics)
 		glFinish();
 
 		// Take screenshot
-		glReadPixels(0, 0, kWindowWidth, kWindowHeight, GL_RGB, GL_UNSIGNED_BYTE, gl_buffer.get());
-		for (int y = 0; y < kWindowHeight; y++) {
-			for (int x = 0; x < kWindowWidth; x++) {
-				buffer_r_(y, x) = static_cast<int>(gl_buffer[3 * (kWindowWidth * y + x) + 0]);
-				buffer_g_(y, x) = static_cast<int>(gl_buffer[3 * (kWindowWidth * y + x) + 1]);
-				buffer_b_(y, x) = static_cast<int>(gl_buffer[3 * (kWindowWidth * y + x) + 2]);
-			}
+		if (gl_buffer_ == nullptr) {
+			gl_buffer_ = new uint8_t[3 * kWindowWidth * kWindowHeight];
 		}
-
+		glReadPixels(0, 0, kWindowWidth, kWindowHeight, GL_RGB, GL_UNSIGNED_BYTE, gl_buffer_);
 		if (glGetError() != GL_NO_ERROR) g_runloop = false;
 
 		// Notify threads waiting on graphics
@@ -94,11 +102,11 @@ void SaiGym::graphicsMain(std::shared_ptr<Graphics::GraphicsInterface> graphics)
 }
 
 /**
- * SaiGym::writeRedisValues()
+ * CSaiEnv::writeRedisValues()
  * -------------------------------
  * Send all write keys to Redis.
  */
-void SaiGym::writeRedisValues() {
+void CSaiEnv::writeRedisValues() {
 	sim->setJointTorques(kRobotName, command_torques_);
 	for (int i = 0; i < kSimulationFreq / kControlFreq; i++) {
 		sim->integrate(1.0 / kSimulationFreq);
@@ -107,11 +115,11 @@ void SaiGym::writeRedisValues() {
 }
 
 /**
- * SaiGym::updateModel()
+ * CSaiEnv::updateModel()
  * --------------------------
  * Update the robot model and all the relevant member variables.
  */
-void SaiGym::updateModel() {
+void CSaiEnv::updateModel() {
 	std::lock_guard<std::mutex> lock(mutex_robot_);
 
 	// Update the model
@@ -133,11 +141,11 @@ void SaiGym::updateModel() {
 }
 
 /**
- * SaiGym::computeJointSpaceControlTorques()
+ * CSaiEnv::computeJointSpaceControlTorques()
  * ----------------------------------------------
  * Controller to initialize robot to desired joint position.
  */
-SaiGym::ControllerStatus SaiGym::computeJointSpaceControlTorques() {
+CSaiEnv::ControllerStatus CSaiEnv::computeJointSpaceControlTorques() {
 	// Finish if the robot has converged to q_initial
 	Eigen::VectorXd q_err = robot_->_q - q_des_;
 	Eigen::VectorXd dq_err = robot_->_dq - dq_des_;
@@ -152,11 +160,11 @@ SaiGym::ControllerStatus SaiGym::computeJointSpaceControlTorques() {
 }
 
 /**
- * SaiGym::computeOperationalSpaceControlTorques()
+ * CSaiEnv::computeOperationalSpaceControlTorques()
  * ----------------------------------------------------
  * Controller to move end effector to desired position.
  */
-SaiGym::ControllerStatus SaiGym::computeOperationalSpaceControlTorques() {
+CSaiEnv::ControllerStatus CSaiEnv::computeOperationalSpaceControlTorques() {
 	// PD position control with velocity saturation
 	Eigen::Vector3d x_err = x_ - x_des_;
 	// Eigen::Vector3d dx_err = dx_ - dx_des_;
@@ -181,11 +189,11 @@ SaiGym::ControllerStatus SaiGym::computeOperationalSpaceControlTorques() {
 }
 
 /**
- * public SaiGym::initialize()
+ * public CSaiEnv::initialize()
  * --------------------------------
  * Initialize timer and Redis client
  */
-void SaiGym::initialize() {
+void CSaiEnv::initialize() {
 	// Create a loop timer
 	timer_.setLoopFrequency(kControlFreq);   // 1 KHz
 	// timer.setThreadHighPriority();  // make timing more accurate. requires running executable as sudo.
@@ -197,12 +205,54 @@ void SaiGym::initialize() {
 	redis_.connect(kRedisHostname, kRedisPort);
 }
 
+void CSaiEnv::syncGraphics() {
+	// Tell graphics to update
+	mutex_graphics_.lock();
+	update_graphics_ = true;
+	mutex_graphics_.unlock();
+	cv_.notify_all();
+
+	// Wait for graphics to finish
+	std::unique_lock<std::mutex> lock_graphics(mutex_graphics_);
+	cv_.wait(lock_graphics, [this]{
+		return !update_graphics_;
+	});
+}
+
+bool CSaiEnv::step(double *action, uint8_t *observation, double& reward) {
+	for (int i = 0; i < kControlFreq / kEnvironmentFreq; i++) {
+		++controller_counter_;
+		try {
+			readRedisValues();
+		} catch (std::exception& e) {
+			std::cout << e.what() << std::endl;
+		}
+		updateModel();
+		x_des_ << action[0], action[1], action[2];
+		computeOperationalSpaceControlTorques();
+		writeRedisValues();
+	}
+
+	gl_buffer_ = observation;
+	syncGraphics();
+
+	// Return episode done
+	return false;
+};
+
+void CSaiEnv::reset(uint8_t *observation) {
+	reset();
+
+	gl_buffer_ = observation;
+	syncGraphics();
+};
+
 /**
- * public SaiGym::runLoop()
+ * public CSaiEnv::runLoop()
  * -----------------------------
- * SaiGym state machine
+ * CSaiEnv state machine
  */
-void SaiGym::runLoop() {
+void CSaiEnv::runLoop() {
 
 	while (g_runloop) {
 		// Wait for next scheduled loop (controller must run at precise rate)
@@ -227,15 +277,15 @@ void SaiGym::runLoop() {
 			// Wait until valid sensor values have been published to Redis
 			case REDIS_SYNCHRONIZATION:
 				if (isnan(robot_->_q)) continue;
-				cout << "Redis synchronized. Switching to joint space controller." << endl;
+				std::cout << "Redis synchronized. Switching to joint space controller." << std::endl;
 				controller_state_ = JOINT_SPACE_INITIALIZATION;
 				break;
 
 			// Initialize robot to default joint configuration
 			case JOINT_SPACE_INITIALIZATION:
 				if (computeJointSpaceControlTorques() == FINISHED) {
-					cout << "Joint position initialized. Switching to operational space controller." << endl;
-					controller_state_ = SaiGym::OP_SPACE_POSITION_CONTROL;
+					std::cout << "Joint position initialized. Switching to operational space controller." << std::endl;
+					controller_state_ = CSaiEnv::OP_SPACE_POSITION_CONTROL;
 				};
 				break;
 
@@ -246,7 +296,7 @@ void SaiGym::runLoop() {
 
 			// Invalid state. Zero torques and exit program.
 			default:
-				cout << "Invalid controller state. Stopping controller." << endl;
+				std::cout << "Invalid controller state. Stopping controller." << std::endl;
 				g_runloop = false;
 				command_torques_.setZero();
 				break;
@@ -254,7 +304,7 @@ void SaiGym::runLoop() {
 
 		// Check command torques before sending them
 		if (isnan(command_torques_)) {
-			cout << "NaN command torques. Sending zero torques to robot." << endl;
+			std::cout << "NaN command torques. Sending zero torques to robot." << std::endl;
 			command_torques_.setZero();
 		}
 
@@ -262,8 +312,9 @@ void SaiGym::runLoop() {
 		writeRedisValues();
 
 		if (controller_counter_ % (kControlFreq / kEnvironmentFreq) == 0) {
-			std::lock_guard<std::mutex> lock_graphics(mutex_graphics_);
+			mutex_graphics_.lock();
 			update_graphics_ = true;
+			mutex_graphics_.unlock();
 			cv_.notify_all();
 		}
 	}
@@ -279,16 +330,16 @@ int main(int argc, char** argv) {
 
 	// Parse command line
 	if (argc != 4) {
-		cout << "Usage: demo_app <path-to-world.urdf> <path-to-robot.urdf> <robot-name>" << endl;
+		std::cout << "Usage: demo_app <path-to-world.urdf> <path-to-robot.urdf> <robot-name>" << std::endl;
 		exit(0);
 	}
 	// Argument 0: executable name
 	// Argument 1: <path-to-world.urdf>
-	string world_file(argv[1]);
+	std::string world_file(argv[1]);
 	// Argument 2: <path-to-robot.urdf>
-	string robot_file(argv[2]);
+	std::string robot_file(argv[2]);
 	// Argument 3: <robot_-name>
-	string robot_name(argv[3]);
+	std::string robot_name(argv[3]);
 
 	// Set up signal handler
 	signal(SIGABRT, &stop);
@@ -296,16 +347,16 @@ int main(int argc, char** argv) {
 	signal(SIGINT, &stop);
 
 	// Load robot
-	cout << "Loading robot: " << robot_file << endl;
-	auto robot = make_shared<Model::ModelInterface>(robot_file, Model::rbdl, Model::urdf, false);
+	std::cout << "Loading robot: " << robot_file << std::endl;
+	auto robot = std::make_shared<Model::ModelInterface>(robot_file, Model::rbdl, Model::urdf, false);
 	auto sim = std::make_shared<Simulation::SimulationInterface>(world_file, Simulation::sai2simulation, Simulation::urdf, false);
 	auto graphics = std::make_shared<Graphics::GraphicsInterface>(world_file, Graphics::chai, Graphics::urdf, true);
 
 	// Start controller app
-	cout << "Initializing app with " << robot_name << endl;
-	SaiGym app(move(robot), robot_name, move(sim), move(graphics));
+	std::cout << "Initializing app with " << robot_name << std::endl;
+	CSaiEnv app(std::move(robot), std::move(sim), std::move(graphics), robot_name);
 	app.initialize();
-	cout << "App initialized. Waiting for Redis synchronization." << endl;
+	std::cout << "App initialized. Waiting for Redis synchronization." << std::endl;
 	app.runLoop();
 
 	return 0;

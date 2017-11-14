@@ -1,5 +1,5 @@
-#ifndef DEMO_PROJECT_H
-#define DEMO_PROJECT_H
+#ifndef C_SAI_ENV_H
+#define C_SAI_ENV_H
 
 // CS225a
 #include <redis/RedisClient.h>
@@ -20,19 +20,23 @@
 #include <GLFW/glfw3.h> //must be loaded after loading opengl/glew
 
 
-class SaiGym {
+class CSaiEnv {
 
 public:
 
-	SaiGym(std::shared_ptr<Model::ModelInterface> robot,
-	       const std::string &robot_name,
-		   std::shared_ptr<Simulation::SimulationInterface> sim,
-		   std::shared_ptr<Graphics::GraphicsInterface> graphics) :
+	CSaiEnv(std::shared_ptr<Model::ModelInterface> robot,
+	        std::shared_ptr<Simulation::SimulationInterface> sim,
+	        std::shared_ptr<Graphics::GraphicsInterface> graphics,
+	        std::string& robot_name,
+			size_t window_width = 400,
+			size_t window_height = 300) :
 		robot_(robot),
 		dof(robot->dof()),
 		kRobotName(robot_name),
 		sim(sim),
-		thread_graphics(&SaiGym::graphicsMain, this, graphics),
+		kWindowWidth(window_width),
+		kWindowHeight(window_height),
+		thread_graphics(&CSaiEnv::graphicsMain, this, graphics),
 		// graphics(dynamic_cast<Graphics::ChaiGraphics *>(graphics->_graphics_internal)),
 		KEY_COMMAND_TORQUES (RedisServer::KEY_PREFIX + robot_name + "::actuators::fgc"),
 		KEY_EE_POS          (RedisServer::KEY_PREFIX + robot_name + "::tasks::ee_pos"),
@@ -53,25 +57,15 @@ public:
 		q_des_(dof),
 		dq_des_(dof)
 	{
-		command_torques_.setZero();
-
-		// Home configuration for Kuka iiwa
-		q_des_ << 90, -30, 0, 60, 0, -90, -60;
-		q_des_ *= M_PI / 180.0;
-		dq_des_.setZero();
-
-		sim->setJointPositions(kRobotName, q_des_);
-		sim->setJointVelocities(kRobotName, dq_des_);
-
-		// Desired end effector position
-		x_des_ << -0.1, 0.4, 0.7;
-		dx_des_.setZero();
+		reset();
 	}
 
 	/***** Public functions *****/
 
 	void initialize();
 	void runLoop();
+	bool step(double *action, uint8_t *observation, double& reward);
+	void reset(uint8_t *observation);
 
 protected:
 
@@ -107,8 +101,8 @@ protected:
 
 	const std::string kRobotName;
 	const std::string kCameraName = "camera_fixed";
-	const int kWindowWidth = 600;
-	const int kWindowHeight = 400;
+	const int kWindowWidth;
+	const int kWindowHeight;
 
 	// Redis keys:
 	// - write:
@@ -128,6 +122,8 @@ protected:
 
 	/***** Member functions *****/
 
+	void reset();
+	void syncGraphics();
 	void readRedisValues();
 	void updateModel();
 	void writeRedisValues();
@@ -172,9 +168,7 @@ protected:
 	Eigen::Vector3d x_des_, dx_des_;
 
 	// Graphics
-	Eigen::MatrixXi buffer_r_ = Eigen::MatrixXi(kWindowHeight, kWindowWidth);
-	Eigen::MatrixXi buffer_g_ = Eigen::MatrixXi(kWindowHeight, kWindowWidth);
-	Eigen::MatrixXi buffer_b_ = Eigen::MatrixXi(kWindowHeight, kWindowWidth);
+	GLubyte *gl_buffer_ = nullptr;
 
 	// Default gains (used only when keys are nonexistent in Redis)
 	double kp_pos_ = 40;
@@ -185,4 +179,4 @@ protected:
 	double kv_joint_ = 10;
 };
 
-#endif  // DEMO_PROJECT_H
+#endif  // C_SAI_ENV_H
