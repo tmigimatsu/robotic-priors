@@ -2,8 +2,12 @@ import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
 import numpy as np
+from ctypes import *
 
-import sai2
+sai2py = cdll.LoadLibrary("./libsai2py.so")
+init = sai2py.init
+init.restype = None
+init.argtypes = [c_char_p, c_char_p, c_char_p]
  
 class SaiEnv(gym.Env):
 
@@ -12,7 +16,7 @@ class SaiEnv(gym.Env):
 
     def __init__(self, world_file, robot_file, robot_name):
         self.img_buffer = np.zeros((300, 200))
-        self.sai2_env = sai2.init(world_file, robot_file, robot_name)
+        self.sai2_env = init(c_char_p(world_file.encode()), c_char_p(robot_file.encode()), c_char_p(robot_name.encode()))
 
     def _step(self, action):
         """
@@ -84,6 +88,7 @@ class SaiEnv(gym.Env):
                 else:
                   super(MyEnv, self).render(mode=mode) # just raise an exception
         """
+        pass
         if mode == "rgb_array":
             return self.img_buffer
         else:
@@ -108,3 +113,6 @@ class SaiEnv(gym.Env):
         """
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
+
+if __name__ == "__main__":
+    sai = SaiEnv("world.urdf", "kuka_iiwa.urdf", "kuka_iiwa")
