@@ -2,21 +2,23 @@ import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
 import numpy as np
-from ctypes import *
 
-sai2py = cdll.LoadLibrary("./libsai2py.so")
-init = sai2py.init
-init.restype = None
-init.argtypes = [c_char_p, c_char_p, c_char_p]
+import sai2
  
 class SaiEnv(gym.Env):
 
     action_space = None
     observation_space = None
 
-    def __init__(self, world_file, robot_file, robot_name):
-        self.img_buffer = np.zeros((300, 200))
-        self.sai2_env = init(c_char_p(world_file.encode()), c_char_p(robot_file.encode()), c_char_p(robot_name.encode()))
+    def __init__(self):
+        world_file = "../resources/world.urdf"
+        robot_file = "../resources/kuka_iiwa.urdf"
+        robot_name = "kuka_iiwa"
+        window_width = 300
+        window_height = 200
+        self.img_buffer = np.zeros((window_height, window_width, 3), dtype=np.uint8)
+        self.sai2_env = sai2.init(world_file, robot_file, robot_name,
+                                  window_width, window_height)
 
     def _step(self, action):
         """
@@ -35,12 +37,8 @@ class SaiEnv(gym.Env):
             done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
             info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-        reward_done = self.sai2_env.step(action)
-        if reward_done is None:
-            return
-
-        reward, done = reward_done
-        return (self.img_buffer, reward, done)
+        reward, done = sai2.step(self.sai2_env, action, self.img_buffer)
+        return (self.img_buffer, reward, done, {})
 
     def _reset(self):
         """
@@ -49,7 +47,7 @@ class SaiEnv(gym.Env):
         Returns:
             observation (object): the initial observation of the space.
         """
-        self.sai2_env.reset()
+        sai2.reset(self.sai2_env, self.img_buffer)
 
     def _render(self, mode="human", close=False):
         """
@@ -88,11 +86,9 @@ class SaiEnv(gym.Env):
                 else:
                   super(MyEnv, self).render(mode=mode) # just raise an exception
         """
-        pass
         if mode == "rgb_array":
             return self.img_buffer
-        else:
-            return super(SaiEnv, self).render(mode=mode)
+        return
 
     def _seed(self, seed=None):
         """
@@ -113,6 +109,3 @@ class SaiEnv(gym.Env):
         """
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
-
-if __name__ == "__main__":
-    sai = SaiEnv("world.urdf", "kuka_iiwa.urdf", "kuka_iiwa")

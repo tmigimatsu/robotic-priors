@@ -219,7 +219,7 @@ void CSaiEnv::syncGraphics() {
 	});
 }
 
-bool CSaiEnv::step(double *action, uint8_t *observation, double& reward) {
+bool CSaiEnv::step(const double *action, uint8_t *observation, double& reward) {
 	for (int i = 0; i < kControlFreq / kEnvironmentFreq; i++) {
 		++controller_counter_;
 		try {

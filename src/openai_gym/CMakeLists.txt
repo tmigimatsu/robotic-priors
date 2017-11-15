@@ -3,7 +3,7 @@ set(EXECUTABLE_NAME sai_gym)
 
 # Create executable
 add_executable(${EXECUTABLE_NAME}
-	"${CMAKE_CURRENT_SOURCE_DIR}/gym_sai2/envs/CSaiEnv.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/CSaiEnv.cpp"
 )
 
 # Link libraries
@@ -18,8 +18,8 @@ set(LIBRARY_NAME sai2py)
 
 # Create library
 add_library(${LIBRARY_NAME} SHARED
-	"${CMAKE_CURRENT_SOURCE_DIR}/gym_sai2/envs/sai2module.cpp"
-	"${CMAKE_CURRENT_SOURCE_DIR}/gym_sai2/envs/CSaiEnv.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/sai2pymodule.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/CSaiEnv.cpp"
 )
 
 # Link libraries
