@@ -51,9 +51,6 @@ public:
 		KEY_KP_JOINT        (RedisServer::KEY_PREFIX + robot_name + "::tasks::kp_joint"),
 		KEY_KV_JOINT        (RedisServer::KEY_PREFIX + robot_name + "::tasks::kv_joint"),
 		command_torques_(dof),
-		Jv_(3, dof),
-		N_(dof, dof),
-		g_(dof),
 		q_des_(dof),
 		dq_des_(dof)
 	{
@@ -100,9 +97,16 @@ protected:
 	const int kRedisPort = 6379;
 
 	const std::string kRobotName;
+
 	const std::string kCameraName = "camera_fixed";
+	const Eigen::Vector3d kCameraPos = Eigen::Vector3d(-0.8, -0.1, 1);
+	const Eigen::Vector3d kCameraVertical = Eigen::Vector3d(0, 0, 1);
+	const Eigen::Vector3d kCameraLookat = Eigen::Vector3d(0, -0.3, 0.6);
 	const int kWindowWidth;
 	const int kWindowHeight;
+
+	const double kWallTolerance = 0.02;
+	const double kCornerDistance = 0.1;
 
 	// Redis keys:
 	// - write:
@@ -123,14 +127,14 @@ protected:
 	/***** Member functions *****/
 
 	void reset();
-	void syncGraphics();
 	void readRedisValues();
 	void updateModel();
 	void writeRedisValues();
-	// void publishEnvironment();
-	void graphicsMain(std::shared_ptr<Graphics::GraphicsInterface> graphics);
 	ControllerStatus computeJointSpaceControlTorques();
 	ControllerStatus computeOperationalSpaceControlTorques();
+
+	void syncGraphics();
+	void graphicsMain(std::shared_ptr<Graphics::GraphicsInterface> graphics);
 
 	/***** Member variables *****/
 
@@ -159,22 +163,26 @@ protected:
 
 	// Controller variables
 	Eigen::VectorXd command_torques_;
-	Eigen::MatrixXd Jv_;
+	Eigen::MatrixXd J_;
 	Eigen::MatrixXd N_;
-	Eigen::MatrixXd Lambda_x_ = Eigen::MatrixXd(3, 3);
+	Eigen::MatrixXd Lambda_ = Eigen::MatrixXd(6, 6);
 	Eigen::VectorXd g_;
 	Eigen::Vector3d x_, dx_;
+	Eigen::Matrix3d R_des_, R_ee_to_base_;
+	Eigen::Vector3d w_;
 	Eigen::VectorXd q_des_, dq_des_;
 	Eigen::Vector3d x_des_, dx_des_;
+	Eigen::Vector3d action_;
 
 	// Graphics
 	GLubyte *gl_buffer_ = nullptr;
 
 	// Default gains (used only when keys are nonexistent in Redis)
-	double kp_pos_ = 40;
-	double kv_pos_ = 10;
-	double kp_ori_ = 40;
-	double kv_ori_ = 10;
+	double kp_action_ = 100;
+	double kp_pos_ = 100;
+	double kv_pos_ = 20;
+	double kp_ori_ = 200;
+	double kv_ori_ = 40;
 	double kp_joint_ = 40;
 	double kv_joint_ = 10;
 };

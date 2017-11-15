@@ -1,5 +1,4 @@
 #include <Python.h>
-#include <numpy/arrayobject.h>
 
 #include <string>
 #include <iostream>

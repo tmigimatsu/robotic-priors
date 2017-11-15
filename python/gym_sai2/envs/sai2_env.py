@@ -7,18 +7,20 @@ from gym_sai2.envs import sai2_env_cpp
  
 class SaiEnv(gym.Env):
 
-    action_space = None
-    observation_space = None
-
     def __init__(self):
-        world_file = "../resources/world.urdf"
-        robot_file = "../resources/kuka_iiwa.urdf"
-        robot_name = "kuka_iiwa"
-        window_width = 300
-        window_height = 200
-        self.img_buffer = np.zeros((window_height, window_width, 3), dtype=np.uint8)
-        self.sai2_env = sai2_env_cpp.init(world_file, robot_file, robot_name,
-                                          window_width, window_height)
+        world_file    = "../resources/gym.urdf"
+        robot_file    = "../resources/kuka_iiwa_gym.urdf"
+        robot_name    = "kuka_iiwa"
+        window_width  = 100
+        window_height = 75
+        dim_img       = (window_height, window_width, 3)
+
+        self.action_space      = spaces.Box(-1, 1, (2,))
+        self.observation_space = spaces.Box(0, 255, dim_img)
+
+        self.img_buffer = np.zeros(dim_img, dtype=np.uint8)
+        self.sai2_env   = sai2_env_cpp.init(world_file, robot_file, robot_name,
+                                            window_width, window_height)
 
     def _step(self, action):
         """

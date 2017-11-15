@@ -1,5 +1,5 @@
 # Set executable name
-set(EXECUTABLE_NAME sai_gym)
+set(EXECUTABLE_NAME sai2_env)
 
 # Create executable
 add_executable(${EXECUTABLE_NAME}
