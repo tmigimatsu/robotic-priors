@@ -1,6 +1,6 @@
 import ctypes as c
 
-sai2py = c.cdll.LoadLibrary("./libsai2py.so")
+sai2py = c.cdll.LoadLibrary("./libsai2-env.so")
 
 sai2_init = sai2py.init
 sai2_init.restype = c.c_void_p

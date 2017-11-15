@@ -1,9 +1,18 @@
-from distutils.core import setup, Extension
+from setuptools import setup
 
-if __name__ == "__main__":
-    setup(
-        name = "gym_sai2",
-        version = "${PACKAGE_VERSION}",
-        package_dir = {"": "${CMAKE_CURRENT_SOURCE_DIR}"},
-        packages =["gym_sai2"]
-    )
+setup(
+    name="gym_sai2",
+    version="0.1",
+    package_dir={"", "${CMAKE_CURRENT_SOURCE_DIR}"},
+    install_requires=["gym"]
+)
+# from distutils.core import setup, Extension
+
+# if __name__ == "__main__":
+#     setup(
+#         name = "gym_sai2",
+#         version = "${PACKAGE_VERSION}",
+#         package_dir = {"": "${CMAKE_CURRENT_SOURCE_DIR}"},
+#         install_requires = ["gym"],
+#         packages = ["gym_sai2"]
+#     )

@@ -36,7 +36,6 @@ find_library(CHAI3D_LIBRARY chai3d paths ${CHAI3D_DIR})
 list(REMOVE_ITEM CHAI3D_LIBRARIES drd)
 list(REMOVE_ITEM CHAI3D_LIBRARIES chai3d)
 set(CHAI3D_LIBRARIES ${CHAI3D_LIBRARY} ${DRD_LIBRARY} ${CHAI3D_LIBRARIES})
-message(${CHAI3D_LIBRARIES})
 
 # SAI2 Common
 set(BUILD_EXAMPLES OFF CACHE BOOL "")
@@ -65,4 +64,5 @@ set(SAI2_LIBRARIES
 add_subdirectory(src/demo_project)
 add_subdirectory(src/simulation)
 add_subdirectory(src/visualization)
-add_subdirectory(src/openai_gym)
+add_subdirectory(src/gym_sai2)
+# add_subdirectory(python)

@@ -14,11 +14,11 @@ target_link_libraries(${EXECUTABLE_NAME}
 )
 
 # Static library for python interface
-set(LIBRARY_NAME sai2py)
+set(LIBRARY_NAME sai2-env)
 
 # Create library
 add_library(${LIBRARY_NAME} SHARED
-	"${CMAKE_CURRENT_SOURCE_DIR}/sai2pymodule.cpp"
+	"${CMAKE_CURRENT_SOURCE_DIR}/sai2_env_py.cpp"
 	"${CMAKE_CURRENT_SOURCE_DIR}/CSaiEnv.cpp"
 )
 
