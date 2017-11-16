@@ -18,9 +18,10 @@ class SaiEnv(gym.Env):
         self.action_space      = spaces.Box(-1, 1, (2,))
         self.observation_space = spaces.Box(0, 255, dim_img)
 
-        self.img_buffer = np.zeros(dim_img, dtype=np.uint8)
-        self.sai2_env   = sai2_env_cpp.init(world_file, robot_file, robot_name,
-                                            window_width, window_height)
+        self.img_buffer  = np.zeros(dim_img, dtype=np.uint8)
+        self.info_buffer = np.zeros((2,3), dtype=np.float64)
+        self.sai2_env    = sai2_env_cpp.init(world_file, robot_file, robot_name,
+                                             window_width, window_height)
 
     def _step(self, action):
         """
@@ -39,8 +40,12 @@ class SaiEnv(gym.Env):
             done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
             info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-        reward, done = sai2_env_cpp.step(self.sai2_env, action, self.img_buffer)
-        return (self.img_buffer, reward, done, {})
+        reward, done = sai2_env_cpp.step(self.sai2_env, action, self.img_buffer, self.info_buffer)
+        info = {
+            "x": self.info_buffer[0],
+            "dx": self.info_buffer[1],
+        }
+        return (self.img_buffer, reward, done, info)
 
     def _reset(self):
         """
@@ -50,6 +55,7 @@ class SaiEnv(gym.Env):
             observation (object): the initial observation of the space.
         """
         sai2_env_cpp.reset(self.sai2_env, self.img_buffer)
+        return self.img_buffer
 
     def _render(self, mode="human", close=False):
         """

@@ -34,9 +34,6 @@ void CSaiEnv::reset() {
 	q_des_ << 1.570796, -0.151874, 0, 1.681582, 0, -1.308137, -1.570796;
 	dq_des_.setZero();
 
-	sim->setJointPositions(kRobotName, q_des_);
-	sim->setJointVelocities(kRobotName, dq_des_);
-
 	// Desired end effector position
 	x_des_ << 0, -0.45, 0.55;
 	action_ << 0, 0, 0;
@@ -44,6 +41,16 @@ void CSaiEnv::reset() {
 	R_des_ << 1,  0,  0,
 		      0, -1,  0,
 		      0,  0, -1;
+
+	// Reset model
+	sim->setJointPositions(kRobotName, q_des_);
+	sim->setJointVelocities(kRobotName, dq_des_);
+	try {
+		readRedisValues();
+	} catch (std::exception& e) {
+		std::cout << e.what() << std::endl;
+	}
+	updateModel();
 }
 
 /**
@@ -63,18 +70,18 @@ void CSaiEnv::reset(uint8_t *observation) {
  * ---------------
  * Step dynamics for OpenAI gym.
  */
-bool CSaiEnv::step(const double *action, uint8_t *observation, double& reward) {
+bool CSaiEnv::step(const double *action, uint8_t *observation, double& reward, double *info) {
 	for (int i = 0; i < kControlFreq / kEnvironmentFreq; i++) {
 		++controller_counter_;
+		action_ << action[0], action[1], 0;
+		computeOperationalSpaceControlTorques();
+		writeRedisValues();
 		try {
 			readRedisValues();
-			action_ << action[0], action[1], action[2];
 		} catch (std::exception& e) {
 			std::cout << e.what() << std::endl;
 		}
 		updateModel();
-		computeOperationalSpaceControlTorques();
-		writeRedisValues();
 	}
 
 	gl_buffer_ = observation;
@@ -102,6 +109,12 @@ bool CSaiEnv::step(const double *action, uint8_t *observation, double& reward) {
 	// Finish episode after 10s
 	bool done = controller_counter_ / kControlFreq >= 10 ||
 	            ((x_ - Eigen::Vector3d(0, -0.45, 0.55)).array().abs() > 0.2).any();
+
+	// Return debug info
+	if (info != nullptr) {
+		for (int i = 0; i < 3; i++) info[  i] = x_(i);
+		for (int i = 0; i < 3; i++) info[3+i] = dx_(i);
+	}
 
 	return done;
 };

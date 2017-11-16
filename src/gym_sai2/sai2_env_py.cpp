@@ -8,7 +8,7 @@
 extern "C" {
 	void *init(const char *cstr_world_file, const char *cstr_robot_file, const char *cstr_robot_name,
 	           size_t window_width, size_t window_height);
-	bool step(void *p_sai2_env, const double *action, uint8_t *observation, double *reward);
+	bool step(void *p_sai2_env, const double *action, uint8_t *observation, double *reward, double *info);
 	void reset(void *p_sai2_env, uint8_t *observation);
 }
 
@@ -32,9 +32,9 @@ void *init(const char *cstr_world_file, const char *cstr_robot_file, const char 
 	return sai2_env;
 }
 
-bool step(void *p_sai2_env, const double *action, uint8_t *observation, double *reward) {
+bool step(void *p_sai2_env, const double *action, uint8_t *observation, double *reward, double *info) {
 	CSaiEnv *sai2_env = reinterpret_cast<CSaiEnv *>(p_sai2_env);
-	return sai2_env->step(action, observation, *reward);
+	return sai2_env->step(action, observation, *reward, info);
 }
 
 void reset(void *p_sai2_env, uint8_t *observation) {

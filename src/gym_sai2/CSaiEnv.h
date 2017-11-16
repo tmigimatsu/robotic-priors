@@ -61,7 +61,7 @@ public:
 
 	void initialize();
 	void runLoop();
-	bool step(const double *action, uint8_t *observation, double& reward);
+	bool step(const double *action, uint8_t *observation, double& reward, double *info);
 	void reset(uint8_t *observation);
 
 protected:
