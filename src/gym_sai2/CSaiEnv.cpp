@@ -92,10 +92,10 @@ bool CSaiEnv::step(const double *action, uint8_t *observation, double& reward, d
 	cv_.notify_all();
 
 	// Compute reward
-	if (((x_ - Eigen::Vector3d(0, -0.45, 0.55)).array().abs() > 0.2 - kWallTolerance).any()) {
+	if (((x_ - kCenter).array().abs() > kCenterDistance - kWallTolerance).any()) {
 		reward = -1;
-	} else if ((x_ - Eigen::Vector3d(-0.2, -0.25, 0.55)).norm() < kCornerDistance) {
-		reward = 10;
+	} else if ((x_ - (kCenter + Eigen::Vector3d(-kCenterDistance, kCenterDistance, 0))).norm() < kCornerDistance) {
+		reward = 1;
 	} else {
 		reward = 0;
 	}
@@ -107,8 +107,8 @@ bool CSaiEnv::step(const double *action, uint8_t *observation, double& reward, d
 	});
 
 	// Finish episode after 10s
-	bool done = controller_counter_ / kControlFreq >= 10 ||
-	            ((x_ - Eigen::Vector3d(0, -0.45, 0.55)).array().abs() > 0.2).any();
+	bool done = controller_counter_ / kControlFreq >= kTimeEpisode;// ||
+				// ((x_ - kCenter).array().abs() > kCenterDistance).any();
 
 	// Return debug info
 	if (info != nullptr) {
@@ -198,8 +198,25 @@ CSaiEnv::ControllerStatus CSaiEnv::computeJointSpaceControlTorques() {
 CSaiEnv::ControllerStatus CSaiEnv::computeOperationalSpaceControlTorques() {
 	// PD position control with velocity saturation
 	Eigen::Vector3d x_err = x_ - x_des_;
-	x_err(0) = kp_action_ / kp_pos_ * (action_(0));
-	x_err(1) = kp_action_ / kp_pos_ * (action_(1));
+
+	// Push back x if hit wall
+	if (x_(0) < kCenter(0) - kCenterDistance) {
+		x_err(0) = x_(0) - kCenter(0);
+	} else if (x_(0) > kCenter(0) + kCenterDistance) {
+		x_err(0) = x_(0) - kCenter(0);
+	} else {
+		x_err(0) = kp_action_ / kp_pos_ * (action_(0));
+	}
+
+	// Push back y if hit wall
+	if (x_(1) < kCenter(1) - kCenterDistance) {
+		x_err(1) = x_(1) - kCenter(1);
+	} else if (x_(1) > kCenter(1) + kCenterDistance) {
+		x_err(1) = x_(1) - kCenter(1);
+	} else {
+		x_err(1) = kp_action_ / kp_pos_ * (action_(1));
+	}
+
 	Eigen::Vector3d dx_err = dx_ - dx_des_;
 	Eigen::Vector3d ddx = -kp_pos_ * x_err - kv_pos_ * dx_err;
 	// dx_des_ = -(kp_pos_ / kv_pos_) * x_err;

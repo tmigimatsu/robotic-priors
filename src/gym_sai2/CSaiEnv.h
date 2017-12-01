@@ -90,7 +90,7 @@ protected:
 
 	const int kControlFreq = 1000;         // 1 kHz control loop
 	const int kSimulationFreq = 10000;         // 1 kHz control loop
-	const int kEnvironmentFreq = 100;         // 1 kHz control loop
+	const int kEnvironmentFreq = 10;         // 1 kHz control loop
 	const int kInitializationPause = 1e6;  // 1ms pause before starting control loop
 
 	const std::string kRedisHostname = "127.0.0.1";
@@ -99,14 +99,20 @@ protected:
 	const std::string kRobotName;
 
 	const std::string kCameraName = "camera_fixed";
-	const Eigen::Vector3d kCameraPos = Eigen::Vector3d(-0.8, -0.1, 1);
+	const Eigen::Vector3d kCameraPos = Eigen::Vector3d(-0.5, 0.0, 1.1);
 	const Eigen::Vector3d kCameraVertical = Eigen::Vector3d(0, 0, 1);
-	const Eigen::Vector3d kCameraLookat = Eigen::Vector3d(0, -0.3, 0.6);
+	const Eigen::Vector3d kCameraLookat = Eigen::Vector3d(0, -0.3, 0.5);
+	// const Eigen::Vector3d kCameraPos = Eigen::Vector3d(-0.8, -0.1, 0.9);
+	// const Eigen::Vector3d kCameraVertical = Eigen::Vector3d(0, 0, 1);
+	// const Eigen::Vector3d kCameraLookat = Eigen::Vector3d(0, -0.3, 0.5);
 	const int kWindowWidth;
 	const int kWindowHeight;
 
 	const double kWallTolerance = 0.02;
 	const double kCornerDistance = 0.1;
+	const Eigen::Vector3d kCenter = Eigen::Vector3d(0, -0.45, 0.55);
+	const double kCenterDistance = 0.2;
+	const double kTimeEpisode = 10;
 
 	// Redis keys:
 	// - write:

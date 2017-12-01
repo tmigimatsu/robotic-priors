@@ -21,7 +21,7 @@ class RandomAgent(object):
         return self.action_space.sample()
 
 if __name__ == "__main__":
-    NUM_EPISODES = 10000
+    NUM_EPISODES = 10
 
     thread = threading.Thread(target=wait, daemon=True)
     thread.start()
@@ -36,7 +36,7 @@ if __name__ == "__main__":
         for i in range(NUM_EPISODES):
 
             print("Iteration: {}".format(i))
-            grp = f.create_group("episode_{0:05d}".format(i))
+            grp = f.create_group("/episodes/{0:05d}".format(i))
 
             ob = env.reset()
             reward = 0
@@ -52,8 +52,8 @@ if __name__ == "__main__":
                 action = agent.act(ob, reward, done)
                 ob, reward, done, info = env.step(action)
 
-                if reward != 0:
-                    print("Reward: {}".format(reward))
+                # if reward != 0:
+                #     print("Reward: {}".format(reward))
 
                 actions.append(np.array(action))
                 observations.append(np.array(ob)[np.newaxis,...])

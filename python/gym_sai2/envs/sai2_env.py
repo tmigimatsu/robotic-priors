@@ -11,8 +11,8 @@ class SaiEnv(gym.Env):
         world_file    = "../resources/gym.urdf"
         robot_file    = "../resources/kuka_iiwa_gym.urdf"
         robot_name    = "kuka_iiwa"
-        window_width  = 100
-        window_height = 75
+        window_width  = 20
+        window_height = 15
         dim_img       = (window_height, window_width, 3)
 
         self.action_space      = spaces.Box(-1, 1, (2,))
