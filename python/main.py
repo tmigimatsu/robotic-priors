@@ -21,7 +21,8 @@ class RandomAgent(object):
         return self.action_space.sample()
 
 if __name__ == "__main__":
-    NUM_EPISODES = 10
+    NUM_BATCHES = 100
+    SIZE_BATCH  = 1000
 
     thread = threading.Thread(target=wait, daemon=True)
     thread.start()
@@ -33,27 +34,26 @@ if __name__ == "__main__":
     filename = "data/data-{}.hdf5".format(strftime("%m-%d_%H-%M"), gmtime())
     with h5py.File(filename, "w") as f:
 
-        for i in range(NUM_EPISODES):
+        initial_observation = env.reset()
+        ob = initial_observation
+        reward = 0
+        done = False
+        dset = f.create_dataset("initial_observation", initial_observation.shape, dtype=initial_observation.dtype)
+        dset[...] = initial_observation
+
+        for i in range(NUM_BATCHES):
 
             print("Iteration: {}".format(i))
-            grp = f.create_group("/episodes/{0:05d}".format(i))
-
-            ob = env.reset()
-            reward = 0
-            done = False
 
             actions = []
-            observations = [np.array(ob)[np.newaxis,...]]
+            observations = []
             rewards = []
             xs = []
             dxs = []
 
-            while not done:
+            for _ in range(SIZE_BATCH):
                 action = agent.act(ob, reward, done)
                 ob, reward, done, info = env.step(action)
-
-                # if reward != 0:
-                #     print("Reward: {}".format(reward))
 
                 actions.append(np.array(action))
                 observations.append(np.array(ob)[np.newaxis,...])
@@ -67,6 +67,7 @@ if __name__ == "__main__":
             xs = np.row_stack(xs)
             dxs = np.row_stack(dxs)
 
+            grp = f.create_group("/episodes/{0:05d}".format(i))
             dset = grp.create_dataset("actions", actions.shape, dtype=actions.dtype)
             dset[...] = actions
             dset = grp.create_dataset("observations", observations.shape, dtype=observations.dtype)

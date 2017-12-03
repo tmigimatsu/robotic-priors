@@ -39,6 +39,7 @@ def temporal_coherence_loss(s, name=None):
         diff_ds = ds[:-1] - ds[1:]
         diff_ds = np.vstack((-ds[0], diff_ds, ds[-1]))
 
+        # TODO: Should be T+1 x 2
         grad = 2 / T * diff_ds
 
         return loss, grad
@@ -105,13 +106,10 @@ def proportionality_loss(s, a, name=None):
         diff_a1 = D[idx_a1]
         diff_a2 = D[idx_a2]
 
-        diff_ds_a1 = diff_a1.T.dot(ds_a1)
-        diff_ds_a2 = diff_a2.T.dot(ds_a2)
+        q1 = diff_a1.T.dot((dds_norm / ds_a1_norm)[:,np.newaxis] * ds_a1)
+        q2 = diff_a2.T.dot((dds_norm / ds_a2_norm)[:,np.newaxis] * ds_a2)
 
-        q1 = dds_norm.dot(1 / ds_a1_norm)
-        q2 = dds_norm.dot(1 / ds_a2_norm)
-
-        grad = 2 / T * (q1 * diff_ds_a1 - q2 * diff_ds_a2)
+        grad = 2 / T * (q1 - q2)
 
         return loss, grad
 
@@ -157,17 +155,6 @@ def causality_loss(s, a, r, name=None):
         s_ar2 = s[idx_ar2]
         ds = s_ar1 - s_ar2
         ds_norm = (ds * ds).sum(axis=1)
-        c = ds_norm.min()
-        exp_ds_norm = np.exp(c - ds_norm)
-
-        loss = np.exp(-c) / T * exp_ds_norm.sum()
-
-        # Gradient
-        s = s[1:]
-        s_ar1 = s[idx_ar1]
-        s_ar2 = s[idx_ar2]
-        ds = s_ar1 - s_ar2
-        ds_norm = (ds * ds).sum(axis=1)
 
         c = ds_norm.min()
         exp_ds_norm = np.exp(c - ds_norm, dtype=np.float32)
@@ -179,6 +166,7 @@ def causality_loss(s, a, r, name=None):
         d_ar = I[idx_ar1] - I[idx_ar2]
         d_ar_exp_ds_norm_ds = d_ar.T.dot(exp_ds_norm[:,np.newaxis] * ds)
 
+        # TODO: Should be T+1 x 2
         grad = -2 * np.exp(-c) / T * d_ar_exp_ds_norm_ds
 
         return loss, grad

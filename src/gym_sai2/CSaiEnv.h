@@ -28,8 +28,8 @@ public:
 	        std::shared_ptr<Simulation::SimulationInterface> sim,
 	        std::shared_ptr<Graphics::GraphicsInterface> graphics,
 	        std::string& robot_name,
-			size_t window_width = 400,
-			size_t window_height = 300) :
+	        size_t window_width = 400,
+	        size_t window_height = 300) :
 		robot_(robot),
 		dof(robot->dof()),
 		kRobotName(robot_name),
@@ -90,7 +90,7 @@ protected:
 
 	const int kControlFreq = 1000;         // 1 kHz control loop
 	const int kSimulationFreq = 10000;         // 1 kHz control loop
-	const int kEnvironmentFreq = 10;         // 1 kHz control loop
+	const int kEnvironmentFreq = 100;         // 1 kHz control loop
 	const int kInitializationPause = 1e6;  // 1ms pause before starting control loop
 
 	const std::string kRedisHostname = "127.0.0.1";

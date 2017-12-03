@@ -107,7 +107,7 @@ bool CSaiEnv::step(const double *action, uint8_t *observation, double& reward, d
 	});
 
 	// Finish episode after 10s
-	bool done = controller_counter_ / kControlFreq >= kTimeEpisode;// ||
+	bool done = false;//controller_counter_ / kControlFreq >= kTimeEpisode;// ||
 				// ((x_ - kCenter).array().abs() > kCenterDistance).any();
 
 	// Return debug info

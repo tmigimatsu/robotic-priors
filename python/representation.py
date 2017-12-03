@@ -23,23 +23,21 @@ k = {
 }
 
 if __name__ == "__main__":
+    LOG = True
 
     print(list_files())
-    filename = get_filename(-2)
+    filename = get_filename(-1)
     print(filename)
 
-    train_batch = batch_data(size_batch=10000, extra=True, filename=filename, dataset="train")
-    test_batch  = batch_data(size_batch=10000, extra=True, filename=filename, dataset="test")
-    o_test,  _, a_test, r_test, x_test,  _ = next(test_batch)
-
     # Model parameters
-    img_width = 20
-    img_height = 15
-    img_depth = 3
-    dim_o = img_width * img_height * img_depth
+    dim_o = np.prod(np.array(get_observation_dim(filename)))
     dim_x = 2
     dim_a = 2
     dim_h1 = 4
+
+    train_batch = batch_data(size_batch=100, extra=True, filename=filename, dataset="train")
+    test_batch  = batch_data(size_batch=100, extra=True, filename=filename, dataset="test")
+    o_test, a_test, r_test, x_test,  _ = next(test_batch)
 
     # Placeholders
     o = tf.placeholder(tf.float32, [None, dim_o], "o")
@@ -59,13 +57,12 @@ if __name__ == "__main__":
     W2 = tf.get_variable("W2", [dim_h1, dim_x], dtype=tf.float32, initializer=initializer)
     tf.summary.tensor_summary("W1", W1)
     tf.summary.tensor_summary("W2", W2)
-    # b = tf.Variable(tf.zeros([dim_y]), dtype=tf.float32)
+    b1 = tf.get_variable("b1", [dim_h1], dtype=tf.float32, initializer=initializer)
+    b2 = tf.get_variable("b2", [dim_x], dtype=tf.float32, initializer=initializer)
 
     # Model input and output
-    h1 = tf.nn.relu(tf.matmul(o, W1))
-    s  = tf.matmul(h1, W2)
-    # ds = s[1:] - s[:-1]
-    # L_temp = tf.reduce_sum(tf.square(ds)) / tf.cast(tf.shape(ds)[0], tf.float32)
+    h1 = tf.nn.relu(tf.matmul(o, W1) + b1)
+    s  = tf.matmul(h1, W2) + b2
 
     L_temp = temporal_coherence_loss(s)
     L_prop = proportionality_loss(s, a)
@@ -73,26 +70,30 @@ if __name__ == "__main__":
     L_rep  = repeatability_loss(s, a)
 
     # loss
-    loss = L_caus
-    # loss = tf.losses.mean_squared_error(x, s)
+    loss = k["w_temp"] * L_temp + k["w_prop"] * L_prop + k["w_caus"] * L_caus + k["w_rep"] * L_rep
     tf.summary.scalar("loss", loss)
 
     # optimizer
-    # optimizer = tf.train.AdadeltaOptimizer()
+    optimizer = tf.train.AdadeltaOptimizer()
     # optimizer = tf.train.RMSPropOptimizer(0.0001)
-    optimizer = tf.train.RMSPropOptimizer(0.001)
     train = optimizer.minimize(loss)
 
     merged = tf.summary.merge_all()
-    # datadir = os.path.join("data", "logs", strftime("%m-%d_%H-%M"))
-    # train_writer = tf.summary.FileWriter(os.path.join(datadir, "train"))
-    # test_writer = tf.summary.FileWriter(os.path.join(datadir, "test"))
+    if LOG:
+        datadir = os.path.join("data", "logs", strftime("%m-%d_%H-%M"))
+        modeldir = os.path.join("data", "models", strftime("%m-%d_%H-%M"))
+        modelpath = os.path.join(modeldir, "model")
+        train_writer = tf.summary.FileWriter(os.path.join(datadir, "train"))
+        test_writer = tf.summary.FileWriter(os.path.join(datadir, "test"))
+        saver = tf.train.Saver()
 
     init = tf.global_variables_initializer()
     sess = tf.Session()
     sess.run(init) # reset values to wrong
-    for i in range(100):
-        o_train, _, a_train, r_train, x_train, _ = next(train_batch)
+    if LOG:
+        saver.save(sess, modelpath)
+    for i in range(10):
+        o_train, a_train, r_train, x_train, _ = next(train_batch)
         feed_train = {
             o: o_train,
             x: x_train,
@@ -100,12 +101,15 @@ if __name__ == "__main__":
             r: r_train
         }
         sess.run(train, feed_train)
+        if LOG:
+            saver.save(sess, modelpath, write_meta_graph=False)
 
         # evaluate training accuracy
         summary, loss_train = sess.run([merged, loss], feed_train)
-        # train_writer.add_summary(summary, i)
+        if LOG:
+            train_writer.add_summary(summary, i)
         summary, loss_test  = sess.run([merged, loss], feed_test)
-        # test_writer.add_summary(summary, i)
+        if LOG:
+            test_writer.add_summary(summary, i)
+
         print("Train loss: {}, Test loss: {}".format(loss_train, loss_test))
-        # print(curr_y - y_train)
-        # print(curr_W1)
