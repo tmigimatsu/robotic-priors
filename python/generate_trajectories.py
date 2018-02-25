@@ -24,16 +24,20 @@ if __name__ == "__main__":
     NUM_BATCHES = 100
     SIZE_BATCH  = 1000
 
+    # Create thread to kill process (ctrl-c doesn't work?)
     thread = threading.Thread(target=wait, daemon=True)
     thread.start()
 
+    # Create sai2 environment
     env = gym.make("sai2-v0")
     env.seed(0)
     agent = RandomAgent(env.action_space)
 
+    # Create dataset
     filename = "data/data-{}.hdf5".format(strftime("%m-%d_%H-%M"), gmtime())
     with h5py.File(filename, "w") as f:
 
+        # Get initial observation
         initial_observation = env.reset()
         ob = initial_observation
         reward = 0
@@ -51,6 +55,7 @@ if __name__ == "__main__":
             xs = []
             dxs = []
 
+            # Generate trajectory
             for _ in range(SIZE_BATCH):
                 action = agent.act(ob, reward, done)
                 ob, reward, done, info = env.step(action)
@@ -61,12 +66,14 @@ if __name__ == "__main__":
                 xs.append(np.array(info["x"]))
                 dxs.append(np.array(info["dx"]))
 
+            # Vectorize trajectory
             actions = np.row_stack(actions)
             observations = np.concatenate(observations, axis=0)
             rewards = np.array(rewards)
             xs = np.row_stack(xs)
             dxs = np.row_stack(dxs)
 
+            # Save trajectory to dataset
             grp = f.create_group("/episodes/{0:05d}".format(i))
             dset = grp.create_dataset("actions", actions.shape, dtype=actions.dtype)
             dset[...] = actions
