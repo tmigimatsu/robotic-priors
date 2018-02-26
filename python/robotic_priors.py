@@ -4,6 +4,8 @@ Tensorflow ops for robotic prior losses.
 import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import ops
+import os
+from time import strftime
 
 k = {
     "epsilon_a": 0.01,
@@ -17,6 +19,150 @@ k = {
     "dim_s": 2,
     "num_pair_samples": 100
 }
+
+class RoboticPriors:
+
+    def __init__(self, dim_image):
+        self.dim_o = np.prod(dim_image)
+        self.dim_x = 2
+        self.dim_a = 2
+        self.lr = 0.001
+
+        self.w_temp = 5
+        self.w_prop = 1
+        self.w_caus = 5
+        self.w_rep = 5
+
+        self.add_placeholders_op()
+        self.add_model_op()
+        self.add_loss_op()
+        self.add_optimizer_op()
+        self.add_summary_op()
+
+        self.train_writer = None
+
+    def add_placeholders_op(self):
+        # Placeholders
+        self.o = tf.placeholder(tf.float32, [None, self.dim_o], "o")
+        self.a = tf.placeholder(tf.float32, [None, self.dim_a], "a")
+        self.r = tf.placeholder(tf.float32, [None], "r")
+        self.x = tf.placeholder(tf.float32, [None, self.dim_x], "x")
+
+    def add_model_op(self):
+        dim_h1 = 16
+        dim_h2 = 8
+        krn_h1 = 5
+        krn_h2 = 5
+
+        # Model architecture
+        initializer = tf.contrib.layers.xavier_initializer()
+        # W1 = tf.get_variable("W1", [dim_o, dim_h1], dtype=tf.float32, initializer=initializer)
+        # W2 = tf.get_variable("W2", [dim_h1, dim_x], dtype=tf.float32, initializer=initializer)
+        # b1 = tf.get_variable("b1", [dim_h1], dtype=tf.float32, initializer=initializer)
+        # b2 = tf.get_variable("b2", [dim_x], dtype=tf.float32, initializer=initializer)
+        W0 = tf.get_variable("W0", [self.dim_o, self.dim_x], dtype=tf.float32, initializer=initializer)
+        b0 = tf.get_variable("b0", [self.dim_o], dtype=tf.float32, initializer=initializer)
+        # # 200 x 150 x 3
+        # conv1 = tf.layers.conv2d(
+        #     inputs=o,
+        #     filters=dim_h1,
+        #     kernel_size=(krn_h1, krn_h1),
+        #     padding="valid",
+        #     strides=(2,2),
+        #     activation=tf.nn.relu,
+        #     name="conv1"
+        # )
+        # # 98 x 73 x 16
+        # pool1 = tf.layers.max_pooling2d(
+        #     inputs=conv1,
+        #     pool_size=(2,2),
+        #     strides=2,
+        #     name="pool1"
+        # )
+        # # 49 x 37 x 16
+        # h1 = tf.reshape(pool1, [-1, dim_o])
+
+        # Model input and output
+        # h1 = tf.nn.relu(tf.matmul(o, W1) + b1)
+        # s  = tf.add(tf.matmul(h1, W2), b2, name="s")
+        self.s = tf.matmul(self.o + b0, W0, name="s")
+        # s = tf.add(tf.matmul(h1, W0), b0, name="s")
+
+    def add_loss_op(self):
+        # Ground truth loss
+        # loss = tf.losses.mean_squared_error(self.x, self.s)
+
+        # Robotic rpiors loss
+        L_temp = temporal_coherence_loss(self.s)
+        L_prop = proportionality_loss(self.s, self.a)
+        L_caus = causality_loss(self.s, self.a, self.r)
+        L_rep  = repeatability_loss(self.s, self.a)
+        self.loss = self.w_temp * L_temp + self.w_prop * L_prop + self.w_caus * L_caus + self.w_rep * L_rep
+
+        tf.summary.scalar("loss", self.loss)
+
+    def add_optimizer_op(self):
+        # Create optimizer
+        # optimizer = tf.train.AdadeltaOptimizer()
+        # optimizer = tf.train.RMSPropOptimizer(0.0001)
+        optimizer = tf.train.AdagradOptimizer(self.lr)
+        self.train = optimizer.minimize(self.loss)
+
+    def add_summary_op(self):
+        self.summary = tf.summary.merge_all()
+        self.saver = tf.train.Saver()
+
+    def evaluate(self, observation):
+        return self.sess.run(self.s, { self.o: observation })
+
+    def create_logger(self):
+        if not os.path.exists(os.path.join("results", "logs")):
+            os.makedirs(os.path.join("results", "logs"))
+        if not os.path.exists(os.path.join("results", "models")):
+            os.makedirs(os.path.join("results", "models"))
+        self.datadir = os.path.join("results", "logs", strftime("%m-%d_%H-%M"))
+        self.modeldir = os.path.join("results", "models", strftime("%m-%d_%H-%M"))
+        self.modelpath = os.path.join(self.modeldir, "model")
+        if self.train_writer is not None:
+            self.train_writer.close()
+        self.train_writer = tf.summary.FileWriter(os.path.join(self.datadir, "train"))
+        # test_writer = tf.summary.FileWriter(os.path.join(datadir, "test"))
+
+    def reset_session(self):
+        # Initialize session
+        init = tf.global_variables_initializer()
+        self.sess = tf.Session()
+        self.sess.run(init) # reset values to wrong
+
+    def train_iteration(self, o_train, a_train, r_train, x_train):
+        feed_train = {
+            self.o: o_train,
+            self.x: x_train,
+            self.a: a_train,
+            self.r: r_train
+        }
+        self.sess.run(self.train, feed_train)
+        summary_train, loss_train = self.sess.run([self.summary, self.loss], feed_train)
+
+        return summary_train, loss_train
+
+    def train_network(self, num_iter, train_batch):
+        min_loss_train = float("inf")
+
+        for i in range(num_iter):
+            # Train iteration
+            o_train, a_train, r_train, x_train, _ = next(train_batch)
+            summary_train, loss_train = self.train_iteration(o_train, a_train, r_train, x_train)
+
+            self.train_writer.add_summary(summary_train, i)
+
+            if loss_train < min_loss_train:
+                min_loss_train = loss_train
+                self.saver.save(self.sess, self.modelpath, global_step=i)
+                with open(os.path.join(self.modeldir, "saved.log"), "w+") as f:
+                    f.write("Iteration: {}, Train loss: {}".format(i, loss_train))
+
+            print("Iteration: {}, Train loss: {},".format(i, loss_train))
 
 # Define custom py_func which takes also a grad op as argument:
 def py_func(func, inp, Tout, stateful=True, name=None, grad=None):

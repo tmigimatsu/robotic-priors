@@ -6,6 +6,7 @@ import h5py
 import numpy as np
 import math
 import glob
+from time import strftime, gmtime
 
 def list_files():
     filepath = os.path.join("data")
@@ -89,7 +90,7 @@ def raw_data(size_batch=100, filename=None):
             return o[:size_batch]
 
 
-def batch_data(size_batch=100, extra=False, filename=None, dataset="train", flatten=True):
+def batch_data(size_batch=100, extra=False, filename=None, dataset="all", flatten=True):
     if filename is None:
         filename = get_filename(-1)
 
@@ -104,7 +105,8 @@ def batch_data(size_batch=100, extra=False, filename=None, dataset="train", flat
         D = (math.floor(0.8 * len(episodes)), len(episodes))
         size_batch = min(1000 * (D[1] - D[0]), size_batch)
     else:
-        raise ValueError("Invalid dataset type: " + dataset)
+        D = (0, len(episodes))
+        size_batch = min(1000 * D[1], size_batch)
     print(dataset, D, len(episodes))
 
     while True:
@@ -195,4 +197,44 @@ def batch_data(size_batch=100, extra=False, filename=None, dataset="train", flat
                 T = 0
 
 
-        print("Dataset finished: " + dataset)
+        # print("Dataset finished: " + dataset)
+
+class DataLogger:
+
+    def __init__(self):
+        if not os.path.exists("results"):
+            os.makedirs("results")
+        self.filename = "results/data-{}.hdf5".format(strftime("%m-%d_%H-%M"), gmtime())
+        self.f = h5py.File(self.filename, "w")
+
+    def log_initial_observation(self, initial_observation):
+        dset = self.f.create_dataset("initial_observation", initial_observation.shape, dtype=initial_observation.dtype)
+        dset[...] = initial_observation
+
+    def log(self, i, actions, observations, rewards, xs, dxs):
+        # Vectorize trajectory
+        actions = np.row_stack(actions)
+        observations = np.concatenate(observations, axis=0)
+        rewards = np.array(rewards)
+        xs = np.row_stack(xs)
+        dxs = np.row_stack(dxs)
+
+        # Save trajectory to dataset
+        grp = self.f.create_group("/episodes/{0:05d}".format(i))
+        dset = grp.create_dataset("actions", actions.shape, dtype=actions.dtype)
+        dset[...] = actions
+        dset = grp.create_dataset("observations", observations.shape, dtype=observations.dtype)
+        dset[...] = observations
+        dset = grp.create_dataset("rewards", rewards.shape, dtype=rewards.dtype)
+        dset[...] = rewards
+        dset = grp.create_dataset("xs", xs.shape, dtype=xs.dtype)
+        dset[...] = xs
+        dset = grp.create_dataset("dxs", dxs.shape, dtype=dxs.dtype)
+        dset[...] = dxs
+
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, etype, value, traceback):
+        self.f.close()
