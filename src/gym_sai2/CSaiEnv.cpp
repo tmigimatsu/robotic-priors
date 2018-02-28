@@ -66,7 +66,6 @@ void CSaiEnv::reset() {
 	}
 
 	// Freeze model at current configuration
-	controller_counter_ = 0;
 	command_torques_.setZero();
 
 	sim->setJointVelocities(kRobotName, dq_des_);

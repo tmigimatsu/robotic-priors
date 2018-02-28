@@ -43,8 +43,8 @@ def get_mean_observation(filename):
             observation = (observations.astype(np.float64) / 255).mean(axis=0)
             mean_observation += observation / D
             D_actual += 1
-            if D_actual >= D:
-                break
+            # if D_actual >= D:
+            #     break
 
         mean_observation *= D / D_actual
 
@@ -93,9 +93,13 @@ def raw_data(size_batch=100, filename=None):
 def batch_data(data=None, size_batch=100, extra=False, filename=None, dataset="all", flatten=True):
     if data is not None:
         observations = data[1]
-        num_observations = sum(o.shape[0] for o in observations)
-        mean_observation = sum(np.mean(o.astype(np.float64), axis=0) * (o.shape[0] / num_observations / 255) for o in observations)
-        mean_observation = mean_observation[np.newaxis,...].astype(np.float32)
+        try:
+            mean_observation = np.load("../resources/mean_observation.npy")
+        except:
+            print("Could not load ../resources/mean_observation.npy")
+            num_observations = sum(o.shape[0] for o in observations)
+            mean_observation = sum(np.mean(o.astype(np.float64), axis=0) * (o.shape[0] / num_observations / 255) for o in observations)
+            mean_observation = mean_observation[np.newaxis,...].astype(np.float32)
 
         for a, o, r, x, dx, s_hat in zip(*data):
             # Preprocess observation

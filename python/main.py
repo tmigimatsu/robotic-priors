@@ -14,7 +14,7 @@ def wait():
     exit()
 
 if __name__ == "__main__":
-    NUM_EPISODES = 100
+    NUM_EPISODES = 10
     LEN_EPISODE  = 1000
     NUM_ITERATIONS = 20
 
@@ -24,6 +24,7 @@ if __name__ == "__main__":
 
     # Create sai2 environment
     env = gym.make("sai2-v0")
+    # TODO: Implement environment seed
     env.seed(0)
 
     # State representation learning
