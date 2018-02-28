@@ -13,12 +13,15 @@ class SaiEnv(gym.Env):
         robot_name    = "kuka_iiwa"
         window_width  = 200
         window_height = 150
-        dim_img       = (window_height, window_width, 3)
 
-        self.action_space      = spaces.Box(-1, 1, (2,))
-        self.observation_space = spaces.Box(0, 255, dim_img)
+        self.dim_action      = (2,)
+        self.dim_observation = (window_height, window_width, 3)
+        self.dim_x           = (2,)
 
-        self.img_buffer  = np.zeros(dim_img, dtype=np.uint8)
+        self.action_space      = spaces.Box(-1, 1, self.dim_action)
+        self.observation_space = spaces.Box(0, 255, self.dim_observation)
+
+        self.img_buffer  = np.zeros(self.dim_observation, dtype=np.uint8)
         self.info_buffer = np.zeros((2,3), dtype=np.float64)
         self.sai2_env    = sai2_env_cpp.init(world_file, robot_file, robot_name,
                                              window_width, window_height)

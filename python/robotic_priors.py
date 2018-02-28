@@ -146,12 +146,12 @@ class RoboticPriors:
 
         return summary_train, loss_train
 
-    def train_network(self, num_iter, train_batch):
+    def train_network(self, train_batch):
         min_loss_train = float("inf")
 
-        for i in range(num_iter):
+        i = 0
+        for o_train, a_train, r_train, x_train, _, _ in train_batch:
             # Train iteration
-            o_train, a_train, r_train, x_train, _ = next(train_batch)
             summary_train, loss_train = self.train_iteration(o_train, a_train, r_train, x_train)
 
             self.train_writer.add_summary(summary_train, i)
@@ -163,6 +163,7 @@ class RoboticPriors:
                     f.write("Iteration: {}, Train loss: {}".format(i, loss_train))
 
             print("Iteration: {}, Train loss: {},".format(i, loss_train))
+            i += 1
 
 # Define custom py_func which takes also a grad op as argument:
 def py_func(func, inp, Tout, stateful=True, name=None, grad=None):

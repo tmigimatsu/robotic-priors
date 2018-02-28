@@ -14,10 +14,9 @@ def wait():
     exit()
 
 if __name__ == "__main__":
-    SIZE_BATCH = 10
-    LEN_TRAJECTORY  = 1000
+    NUM_EPISODES = 100
+    LEN_EPISODE  = 1000
     NUM_ITERATIONS = 20
-    NUM_RP_ITERATIONS = 10
 
     # Create thread to kill process (ctrl-c doesn't work?)
     thread = threading.Thread(target=wait, daemon=True)
@@ -26,10 +25,9 @@ if __name__ == "__main__":
     # Create sai2 environment
     env = gym.make("sai2-v0")
     env.seed(0)
-    initial_observation = env.reset()
 
     # State representation learning
-    robotic_priors = RoboticPriors(initial_observation.shape)
+    robotic_priors = RoboticPriors(env.dim_observation)
     robotic_priors.reset_session()
 
     # Reinforcement learning agent
@@ -37,25 +35,28 @@ if __name__ == "__main__":
 
     for i in range(NUM_ITERATIONS):
 
+        print("Iteration: {}".format(i))
+
         # Generate RL trajectories
         with DataLogger() as d:
             filename = d.filename
 
-            # Get initial observation
-            ob, reward, done = np.array(initial_observation)[np.newaxis,...], 0, False
-            d.log_initial_observation(initial_observation)
+            for j in range(NUM_EPISODES):
 
-            for i in range(SIZE_BATCH):
+                print("Episode: {}".format(j))
 
-                print("Iteration: {}".format(i))
+                # Get initial observation
+                ob = env.reset()
+                ob = np.array(ob)[np.newaxis,...]
 
-                actions, observations, rewards, xs, dxs = [], [], [], [], []
+                # One episode
+                actions, observations, rewards, xs, dxs, learned_states = [], [ob], [], [], [], []
 
                 # Generate trajectory
-                for _ in range(LEN_TRAJECTORY):
+                for _ in range(LEN_EPISODE):
                     # Query RL policy
                     s_hat = robotic_priors.evaluate(np.reshape(ob, (1,-1)))
-                    action = agent.act(s_hat, reward, done)
+                    action = agent.act(s_hat)
                     ob, reward, done, info = env.step(action)
                     ob = np.array(ob)[np.newaxis,...]
 
@@ -65,13 +66,26 @@ if __name__ == "__main__":
                     rewards.append(reward)
                     xs.append(np.array(info["x"]))
                     dxs.append(np.array(info["dx"]))
+                    learned_states.append(s_hat)
 
-                d.log(i, actions, observations, rewards, xs, dxs)
+                # Vectorize trajectory
+                actions = np.row_stack(actions)
+                observations = np.concatenate(observations, axis=0)
+                rewards = np.array(rewards)
+                xs = np.row_stack(xs)
+                dxs = np.row_stack(dxs)
+                learned_states = np.row_stack(learned_states)
+
+                # Log data
+                d.log(j, actions, observations, rewards, xs, dxs, learned_states)
+
+            # Get list of actions, observations, rewards, xs, dxs, learned_states from all episodes
+            episodes = d.flush()
 
         # Train represnetation learning
         robotic_priors.create_logger()
-        train_batch = batch_data(size_batch=1000, extra=True, filename=filename, flatten=True)
-        robotic_priors.train_network(NUM_RP_ITERATIONS, train_batch)
+        robotic_priors_data_generator = batch_data(data=episodes, extra=True, flatten=True)
+        robotic_priors.train_network(robotic_priors_data_generator)
 
     env.close()
 

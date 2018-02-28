@@ -90,7 +90,29 @@ def raw_data(size_batch=100, filename=None):
             return o[:size_batch]
 
 
-def batch_data(size_batch=100, extra=False, filename=None, dataset="all", flatten=True):
+def batch_data(data=None, size_batch=100, extra=False, filename=None, dataset="all", flatten=True):
+    if data is not None:
+        observations = data[1]
+        num_observations = sum(o.shape[0] for o in observations)
+        mean_observation = sum(np.mean(o.astype(np.float64), axis=0) * (o.shape[0] / num_observations / 255) for o in observations)
+        mean_observation = mean_observation[np.newaxis,...].astype(np.float32)
+
+        for a, o, r, x, dx, s_hat in zip(*data):
+            # Preprocess observation
+            o = o.astype(np.float32) / 255 - mean_observation
+            if flatten:
+                o = o.reshape(o.shape[0], -1)
+                assert np.all(np.any(np.abs(o) > 0.01, axis=1))
+
+            if extra:
+                x = x[...,:2] - np.array([0, -0.45])[np.newaxis,:]
+                dx = dx[...,:2]
+                yield (o, a, r, x, dx, s_hat)
+            else:
+                yield (o, a, r)
+
+        return
+
     if filename is None:
         filename = get_filename(-1)
 
@@ -207,18 +229,18 @@ class DataLogger:
         self.filename = "results/data-{}.hdf5".format(strftime("%m-%d_%H-%M"), gmtime())
         self.f = h5py.File(self.filename, "w")
 
+        self.actions_history = []
+        self.observations_history = []
+        self.rewards_history = []
+        self.xs_history = []
+        self.dxs_history = []
+        self.learned_states_history = []
+
     def log_initial_observation(self, initial_observation):
         dset = self.f.create_dataset("initial_observation", initial_observation.shape, dtype=initial_observation.dtype)
         dset[...] = initial_observation
 
-    def log(self, i, actions, observations, rewards, xs, dxs):
-        # Vectorize trajectory
-        actions = np.row_stack(actions)
-        observations = np.concatenate(observations, axis=0)
-        rewards = np.array(rewards)
-        xs = np.row_stack(xs)
-        dxs = np.row_stack(dxs)
-
+    def log(self, i, actions, observations, rewards, xs, dxs, learned_states):
         # Save trajectory to dataset
         grp = self.f.create_group("/episodes/{0:05d}".format(i))
         dset = grp.create_dataset("actions", actions.shape, dtype=actions.dtype)
@@ -231,7 +253,36 @@ class DataLogger:
         dset[...] = xs
         dset = grp.create_dataset("dxs", dxs.shape, dtype=dxs.dtype)
         dset[...] = dxs
+        dset = grp.create_dataset("learned_states", learned_states.shape, dtype=learned_states.dtype)
+        dset[...] = learned_states
 
+        # Add to history
+        self.actions_history.append(actions)
+        self.observations_history.append(observations)
+        self.rewards_history.append(rewards)
+        self.xs_history.append(xs)
+        self.dxs_history.append(dxs)
+        self.learned_states_history.append(learned_states)
+
+    def flush(self):
+
+        actions = self.actions_history
+        observations = self.observations_history
+        rewards = self.rewards_history
+        xs = self.xs_history
+        dxs = self.dxs_history
+        learned_states = self.learned_states_history
+
+        self.actions_history = []
+        self.observations_history = []
+        self.rewards_history = []
+        self.xs_history = []
+        self.dxs_history = []
+        self.learned_states_history = []
+
+        self.f.flush()
+
+        return actions, observations, rewards, xs, dxs, learned_states
 
     def __enter__(self):
         return self

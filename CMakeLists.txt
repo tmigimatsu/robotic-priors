@@ -45,6 +45,7 @@ add_subdirectory(${SAI2_EXTERNAL_DIR}/sai2-common.git)
 # TODO: Find local way to do this
 find_package(SAI2-COMMON PATHS ${SAI2_EXTERNAL_DIR}/sai2-common.git/build)
 include_directories(${SAI2-COMMON_INCLUDE_DIRS})
+message(${SAI2-COMMON_INCLUDE_DIRS})
 
 
 ###################

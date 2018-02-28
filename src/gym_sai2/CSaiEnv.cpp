@@ -5,6 +5,7 @@
 #include <cmath>
 
 #include <signal.h>
+#include <stdlib.h>
 static volatile bool g_runloop = true;
 void stop(int) { g_runloop = false; }
 
@@ -35,7 +36,9 @@ void CSaiEnv::reset() {
 	dq_des_.setZero();
 
 	// Desired end effector position
-	x_des_ << 0, -0.45, 0.55;
+	x_des_ << kCenterDistance * (2 * (double)rand() / RAND_MAX - 1) + kCenter(0),
+	          kCenterDistance * (2 * (double)rand() / RAND_MAX - 1) + kCenter(1),
+	          kCenter(2);
 	action_ << 0, 0, 0;
 	dx_des_.setZero();
 	R_des_ << 1,  0,  0,
@@ -44,6 +47,28 @@ void CSaiEnv::reset() {
 
 	// Reset model
 	sim->setJointPositions(kRobotName, q_des_);
+	sim->setJointVelocities(kRobotName, dq_des_);
+	try {
+		readRedisValues();
+	} catch (std::exception& e) {
+		std::cout << e.what() << std::endl;
+	}
+	updateModel();
+
+	// 10s to get to random x_des
+	while ((x_ - x_des_).norm() > kToleranceInitX) {
+		computeSimpleOperationalSpaceControlTorques();
+		sim->setJointTorques(kRobotName, command_torques_);
+		sim->integrate(1.0 / kControlFreq);
+		sim->getJointPositions(kRobotName, robot_->_q);
+		sim->getJointVelocities(kRobotName, robot_->_dq);
+		updateModel();
+	}
+
+	// Freeze model at current configuration
+	controller_counter_ = 0;
+	command_torques_.setZero();
+
 	sim->setJointVelocities(kRobotName, dq_des_);
 	try {
 		readRedisValues();
@@ -224,6 +249,31 @@ CSaiEnv::ControllerStatus CSaiEnv::computeOperationalSpaceControlTorques() {
 	// if (v > 1) v = 1;
 	// Eigen::Vector3d dx_err = dx_ - v * dx_des_;
 	// Eigen::Vector3d ddx = -kv_pos_ * dx_err;
+
+	// Orientation
+	Eigen::Vector3d dPhi = robot_->orientationError(R_des_, R_ee_to_base_);
+	Eigen::Vector3d dw = -kp_ori_ * dPhi - kv_ori_ * w_;
+
+	// Nullspace posture control and damping
+	Eigen::VectorXd q_err = robot_->_q - q_des_;
+	Eigen::VectorXd dq_err = robot_->_dq - dq_des_;
+	Eigen::VectorXd ddq = -kp_joint_ * q_err - kv_joint_ * dq_err;
+
+	// Control torques
+	Eigen::VectorXd ddx_dw(6);
+	ddx_dw << ddx, dw;
+	Eigen::VectorXd F = Lambda_ * ddx_dw;
+	Eigen::VectorXd F_posture = robot_->_M * ddq;
+	command_torques_ = J_.transpose() * F + N_.transpose() * F_posture + g_;
+
+	return RUNNING;
+}
+
+CSaiEnv::ControllerStatus CSaiEnv::computeSimpleOperationalSpaceControlTorques() {
+	// PD position control with velocity saturation
+	Eigen::Vector3d x_err = x_ - x_des_;
+	Eigen::Vector3d dx_err = dx_ - dx_des_;
+	Eigen::Vector3d ddx = -kp_pos_ * x_err - kv_pos_ * dx_err;
 
 	// Orientation
 	Eigen::Vector3d dPhi = robot_->orientationError(R_des_, R_ee_to_base_);

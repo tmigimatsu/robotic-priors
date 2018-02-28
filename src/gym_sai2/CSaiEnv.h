@@ -87,6 +87,7 @@ protected:
 	const double kToleranceInitQ  = 0.1;  // Joint space initialization tolerance
 	const double kToleranceInitDq = 0.1;  // Joint space initialization tolerance
 	const double kMaxVelocity = 0.5;  // Maximum end effector velocity
+	const double kToleranceInitX  = 0.01;  // Task space initialization tolerance
 
 	const int kControlFreq = 1000;         // 1 kHz control loop
 	const int kSimulationFreq = 10000;         // 1 kHz control loop
@@ -138,6 +139,7 @@ protected:
 	void writeRedisValues();
 	ControllerStatus computeJointSpaceControlTorques();
 	ControllerStatus computeOperationalSpaceControlTorques();
+	ControllerStatus computeSimpleOperationalSpaceControlTorques();
 
 	void syncGraphics();
 	void graphicsMain(std::shared_ptr<Graphics::GraphicsInterface> graphics);
