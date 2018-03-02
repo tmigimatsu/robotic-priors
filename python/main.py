@@ -51,15 +51,18 @@ if __name__ == "__main__":
                 ob = np.array(ob)[np.newaxis,...]
 
                 # One episode
-                actions, observations, rewards, xs, dxs, learned_states = [], [ob], [], [], [], []
+                actions, observations, rewards, xs, dxs, learned_states, aInds, sp_hats, donemasks = [], [ob], [], [], [], [], [], [], []
 
                 # Generate trajectory
                 for _ in range(LEN_EPISODE):
                     # Query RL policy
                     s_hat = robotic_priors.evaluate(np.reshape(ob, (1,-1)))
                     action = agent.act(s_hat)
+                    aInd=0;
                     ob, reward, done, info = env.step(action)
                     ob = np.array(ob)[np.newaxis,...]
+                    sp_hat = robotic_priors.evaluate(np.reshape(ob, (1,-1)))
+
 
                     # Append to trajectory
                     actions.append(np.array(action))
@@ -68,6 +71,11 @@ if __name__ == "__main__":
                     xs.append(np.array(info["x"]))
                     dxs.append(np.array(info["dx"]))
                     learned_states.append(s_hat)
+                    donemasks.append(done)
+                    sp_hats.append(sp_hat)
+                    aInds.append(aInd)
+
+                
 
                 # Vectorize trajectory
                 actions = np.row_stack(actions)
@@ -76,9 +84,12 @@ if __name__ == "__main__":
                 xs = np.row_stack(xs)
                 dxs = np.row_stack(dxs)
                 learned_states = np.row_stack(learned_states)
+                aInds= np.row_stack(aInds)
+                sp_hats= np.row_stack(sp_hats)
+                donemasks=np.row_stack(donemasks)
 
                 # Log data
-                d.log(j, actions, observations, rewards, xs, dxs, learned_states)
+                d.log(j, actions, observations, rewards, xs, dxs, learned_states,aInds, sp_hats, donemasks) # Negin added aindex,.... 
 
             # Get list of actions, observations, rewards, xs, dxs, learned_states from all episodes
             episodes = d.flush()

@@ -93,6 +93,11 @@ def raw_data(size_batch=100, filename=None):
 def batch_data(data=None, size_batch=100, extra=False, filename=None, dataset="all", flatten=True):
     if data is not None:
         observations = data[1]
+        aInd=data[6]
+        sp_hat=data[7]
+        d=data[8]
+
+
         try:
             mean_observation = np.load("../resources/mean_observation.npy")
         except:
@@ -101,7 +106,7 @@ def batch_data(data=None, size_batch=100, extra=False, filename=None, dataset="a
             mean_observation = sum(np.mean(o.astype(np.float64), axis=0) * (o.shape[0] / num_observations / 255) for o in observations)
             mean_observation = mean_observation[np.newaxis,...].astype(np.float32)
 
-        for a, o, r, x, dx, s_hat in zip(*data):
+        for a, o, r, x, dx, s_hat, aindex, sp_hat, d in zip(*data): 
             # Preprocess observation
             o = o.astype(np.float32) / 255 - mean_observation
             if flatten:
@@ -111,7 +116,7 @@ def batch_data(data=None, size_batch=100, extra=False, filename=None, dataset="a
             if extra:
                 x = x[...,:2] - np.array([0, -0.45])[np.newaxis,:]
                 dx = dx[...,:2]
-                yield (o, a, r, x, dx, s_hat)
+                yield (o, a, r, x, dx, s_hat, aInd, sp_hat, d)
             else:
                 yield (o, a, r)
 
@@ -240,11 +245,15 @@ class DataLogger:
         self.dxs_history = []
         self.learned_states_history = []
 
+        self.aInds_states_history = []
+        self.sp_hats_states_history = []
+        self.donemasks_states_history = []
+
     def log_initial_observation(self, initial_observation):
         dset = self.f.create_dataset("initial_observation", initial_observation.shape, dtype=initial_observation.dtype)
         dset[...] = initial_observation
 
-    def log(self, i, actions, observations, rewards, xs, dxs, learned_states):
+    def log(self, i, actions, observations, rewards, xs, dxs, learned_states, aInds, sp_hats, donemasks):
         # Save trajectory to dataset
         grp = self.f.create_group("/episodes/{0:05d}".format(i))
         dset = grp.create_dataset("actions", actions.shape, dtype=actions.dtype)
@@ -260,6 +269,16 @@ class DataLogger:
         dset = grp.create_dataset("learned_states", learned_states.shape, dtype=learned_states.dtype)
         dset[...] = learned_states
 
+        dset = grp.create_dataset("aInds", aInds.shape, dtype=aInds.dtype)
+        dset[...] = aInds
+        dset = grp.create_dataset("sp_hats", sp_hats.shape, dtype=sp_hats.dtype)
+        dset[...] = sp_hats
+        dset = grp.create_dataset("donemasks", donemasks.shape, dtype=donemasks.dtype)
+        dset[...] = donemasks
+
+
+
+
         # Add to history
         self.actions_history.append(actions)
         self.observations_history.append(observations)
@@ -267,6 +286,11 @@ class DataLogger:
         self.xs_history.append(xs)
         self.dxs_history.append(dxs)
         self.learned_states_history.append(learned_states)
+        self.aInds_states_history.append(aInds)
+        self.sp_hats_states_history.append(sp_hats)
+        self.donemasks_states_history.append(donemasks)
+
+
 
     def flush(self):
 
@@ -276,6 +300,11 @@ class DataLogger:
         xs = self.xs_history
         dxs = self.dxs_history
         learned_states = self.learned_states_history
+        aInds= self.aInds_states_history
+        sp_hats= self.sp_hats_states_history
+        donemasks= self.donemasks_states_history
+
+
 
         self.actions_history = []
         self.observations_history = []
@@ -283,10 +312,13 @@ class DataLogger:
         self.xs_history = []
         self.dxs_history = []
         self.learned_states_history = []
+        self.aInds_states_history = []
+        self.sp_hats_states_history=[]
+        self.donemasks_states_history=[]
 
         self.f.flush()
 
-        return actions, observations, rewards, xs, dxs, learned_states
+        return actions, observations, rewards, xs, dxs, learned_states, aInds, sp_hats, donemasks
 
     def __enter__(self):
         return self
