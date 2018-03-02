@@ -8,6 +8,7 @@ from data import *
 from robotic_priors import *
 from reinforcement_learning import DQN_Agent
 from configs.dqn import config
+from schedule import LinearSchedule
 import threading
 
 def wait():
@@ -31,9 +32,13 @@ if __name__ == "__main__":
     # State representation learning
     robotic_priors = RoboticPriors(env.dim_observation)
     robotic_priors.reset_session()
+    dataLogDir=robotic_priors.create_logger() #get file for logger
+    sess=robotic_priors.sess #get session
 
     # Reinforcement learning agent
-    agent = DQN_Agent(env.action_space)
+    agent = DQN_Agent(env, sess, config, dataLogDir, logger=None)
+    lrLine=LinearSchedule(config.lr_begin, config.lr_end, 20/2)
+    epsLine=LinearSchedule(config.esp_begin, config.eps_end, 20/2)
 
     for i in range(NUM_ITERATIONS):
 
@@ -58,12 +63,12 @@ if __name__ == "__main__":
                 for _ in range(LEN_EPISODE):
                     # Query RL policy
                     s_hat = robotic_priors.evaluate(np.reshape(ob, (1,-1)))
-                    action, actionInd = agent.action(s_hat)
+                    action, actionInd = agent.action(s_hat, epsLine.val)
                     ob, reward, done, info = env.step(action)
                     ob = np.array(ob)[np.newaxis,...]
 
                     # Append to trajectory
-                    actions.append(np.array(actionInd)) # save index because one hot stuff
+                    actions.append(np.array(action)) # save index because one hot stuff
                     observations.append(ob)
                     rewards.append(reward)
                     xs.append(np.array(info["x"]))
@@ -85,7 +90,7 @@ if __name__ == "__main__":
             episodes = d.flush()
 
         # Train represnetation learning
-        robotic_priors.create_logger()
+        dataLogDir=robotic_priors.create_logger()
         robotic_priors_data_generator = batch_data(data=episodes, extra=True, flatten=True)
         robotic_priors.train_network(robotic_priors_data_generator)
 

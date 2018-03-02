@@ -126,6 +126,7 @@ class RoboticPriors:
         if self.train_writer is not None:
             self.train_writer.close()
         self.train_writer = tf.summary.FileWriter(os.path.join(self.datadir, "train"))
+        return os.path.join(self.datadir, "train")
         # test_writer = tf.summary.FileWriter(os.path.join(datadir, "test"))
 
     def reset_session(self):

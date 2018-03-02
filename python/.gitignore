@@ -1,5 +1,6 @@
 .env
 env
+.pyc
 results
 dist
 *.egg-info
