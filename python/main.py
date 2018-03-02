@@ -16,9 +16,9 @@ def wait():
     exit()
 
 if __name__ == "__main__":
-    NUM_EPISODES = 10
-    LEN_EPISODE  = 1000
-    NUM_ITERATIONS = 20
+    NUM_EPISODES = 1
+    LEN_EPISODE  = 10
+    NUM_ITERATIONS = 3
 
     # Create thread to kill process (ctrl-c doesn't work?)
     thread = threading.Thread(target=wait, daemon=True)
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # Reinforcement learning agent
     agent = DQN_Agent(env, sess, config, dataLogDir, logger=None)
     lrLine=LinearSchedule(config.lr_begin, config.lr_end, 20/2)
-    epsLine=LinearSchedule(config.esp_begin, config.eps_end, 20/2)
+    epsLine=LinearSchedule(config.eps_begin, config.eps_end, 20/2)
 
     for i in range(NUM_ITERATIONS):
 
@@ -80,7 +80,7 @@ if __name__ == "__main__":
                     learned_states.append(s_hat)
                     donemasks.append(done)
                     sp_hats.append(sp_hat)
-                    aInds.append(aInd)
+                    aInds.append(actionInd)
 
                 
 
@@ -105,6 +105,13 @@ if __name__ == "__main__":
         dataLogDir=robotic_priors.create_logger()
         robotic_priors_data_generator = batch_data(data=episodes, extra=True, flatten=True)
         robotic_priors.train_network(robotic_priors_data_generator)
+        
+        if (i>1) and (i%2==0):
+            agent.train_network(robotic_priors_data_generator, lrLine.val)
+            lrLine.update(i)
+            epsLine.update(i)
+
+     
 
     env.close()
 

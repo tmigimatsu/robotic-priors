@@ -151,7 +151,7 @@ class RoboticPriors:
         min_loss_train = float("inf")
 
         i = 0
-        for o_train, a_train, r_train, x_train, _, _ in train_batch:
+        for o_train, a_train, r_train, x_train, dx_, s_hat_ , ai_ , sp_ , done_  in train_batch:
             # Train iteration
             summary_train, loss_train = self.train_iteration(o_train, a_train, r_train, x_train)
 

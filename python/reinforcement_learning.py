@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow.contrib.layers as layers
 
 import gym
 import gym_sai2
@@ -25,7 +26,6 @@ class DQN_Agent(object):
 
             
         # store hyper params
-        self.initialize(sess)
         self.config = config
         self.sess=sess
         self.logdir=logdir
@@ -39,6 +39,8 @@ class DQN_Agent(object):
         self.build()
         #make summary writer
         self.train_writer = tf.summary.FileWriter(self.logdir)
+
+        self.initialize()
 
     def build(self):
         # add placeholders
@@ -110,15 +112,15 @@ class DQN_Agent(object):
         return out
     def action(self, state, eps):
         #action index to action in [-1, -.5, 0, .5, 1] x[-1, -.5, 0, .5, 1]
-        if rand.random() > eps
+        if rand.random() > eps:
             action_values = self.sess.run(self.q, feed_dict={self.s: [state]})[0]
             actInd= np.argmax(action_values)
         else:
-            actInd=randint(self.a_size, size=self.a_dim) # rand on 0-4x0-4 U Z
-        
+            actInd=rand.randint(self.a_size**self.a_dim) # rand on 0-4x0-4 U Z
 
-        act=np.unravel_index(actInd, (self.a_size, self.a_size))[0]
-        act=2.*act/float(self.size-1) -1
+        
+        act=np.array(np.unravel_index(actInd, (self.a_size, self.a_size)))
+        act=2.*act/float(self.a_size-1) -1
         return act, actInd
     
     def add_update_target_op(self, q_scope, target_q_scope):
@@ -145,19 +147,12 @@ class DQN_Agent(object):
         self.grad_norm = tf.global_norm(grads)
 
     def train_step(self, data, lr):
-        """
-        Performs an update of parameters by sampling from replay_buffer
+        #Performs an update of parameters with the given data
 
-        Args:
-            t: number of iteration (episode and move)
-            replay_buffer: ReplayBuffer instance .sample() gives batches
-            lr: (float) learning rate
-        Returns:
-            loss: (Q - Q_target)^2
-        """
 
         s_batch, a_batch, r_batch, sp_batch, done_mask_batch = data
-
+        print('training a step')
+        print(s_batch)
 
         fd = {
             # inputs
@@ -168,8 +163,9 @@ class DQN_Agent(object):
             self.done_mask: done_mask_batch,
             self.lr: lr, 
             # extra info
-            self.avg_reward_placeholder: self.avg_reward,  
-            self.avg_q_placeholder: self.avg_q}
+            self.avg_reward_placeholder: 0, #self.avg_reward,  
+            self.avg_q_placeholder: 0 #self.avg_q
+            }
 
         loss, grad, summary, _ = self.sess.run([self.loss, self.grad_norm, 
                                                  self.summary, self.train_op], feed_dict=fd)
@@ -182,10 +178,16 @@ class DQN_Agent(object):
         print("TRAINING: DQN: lr={},".format(lr))
 
         i = 0
+        print(train_batch)
         for o_train, a_train, r_train, x_train, dx_train, s_hat_train, ai_train, sp_hat_train, d_train in train_batch:
             # Train iteration
+            print("training stuff")
             dataForRl=(s_hat_train, ai_train, r_train, sp_hat_train, d_train)
             loss_train, grad_train, summary_train = self.train_step(dataForRl, lr)
+
+            if i%10==0:
+                self.sess.run(self.update_target_op)
+
 
             self.train_writer.add_summary(summary_train, i)
 
