@@ -6,7 +6,8 @@ import gym_sai2
 import numpy as np
 from data import *
 from robotic_priors import *
-from reinforcement_learning import *
+from reinforcement_learning import DQN_Agent
+from configs.dqn import config
 import threading
 
 def wait():
@@ -32,7 +33,7 @@ if __name__ == "__main__":
     robotic_priors.reset_session()
 
     # Reinforcement learning agent
-    agent = RandomAgent(env.action_space)
+    agent = DQN_Agent(env.action_space)
 
     for i in range(NUM_ITERATIONS):
 
@@ -57,12 +58,12 @@ if __name__ == "__main__":
                 for _ in range(LEN_EPISODE):
                     # Query RL policy
                     s_hat = robotic_priors.evaluate(np.reshape(ob, (1,-1)))
-                    action = agent.act(s_hat)
+                    action, actionInd = agent.action(s_hat)
                     ob, reward, done, info = env.step(action)
                     ob = np.array(ob)[np.newaxis,...]
 
                     # Append to trajectory
-                    actions.append(np.array(action))
+                    actions.append(np.array(actionInd)) # save index because one hot stuff
                     observations.append(ob)
                     rewards.append(reward)
                     xs.append(np.array(info["x"]))
