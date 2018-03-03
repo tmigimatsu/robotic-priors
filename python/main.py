@@ -63,7 +63,6 @@ if __name__ == "__main__":
                 for _ in range(LEN_EPISODE):
                     # Query RL policy
                     s_hat = robotic_priors.evaluate(np.reshape(ob, (1,-1)))
-
                     action, actionInd = agent.action(s_hat, epsLine.val)
 
                     ob, reward, done, info = env.step(action)
@@ -104,10 +103,11 @@ if __name__ == "__main__":
         # Train represnetation learning
         dataLogDir=robotic_priors.create_logger()
         robotic_priors_data_generator = batch_data(data=episodes, extra=True, flatten=True)
+        RL_data_generator = batch_data(data=episodes, extra=True, flatten=True)
         robotic_priors.train_network(robotic_priors_data_generator)
         
         if (i>1) and (i%2==0):
-            agent.train_network(robotic_priors_data_generator, lrLine.val)
+            agent.train_network(RL_data_generator, lrLine.val)
             lrLine.update(i)
             epsLine.update(i)
 

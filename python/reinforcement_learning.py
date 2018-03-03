@@ -27,7 +27,7 @@ class DQN_Agent(object):
             
         # store hyper params
         self.config = config
-        self.sess=sess
+        self.sess=tf.Session() #sess
         self.logdir=logdir
         #self.logger = logger #no idea how to use tboard
         self.env = env
@@ -85,10 +85,8 @@ class DQN_Agent(object):
         # logging
         self.summary = tf.summary.merge_all()
         #self.file_writer = tf.summary.FileWriter(self.config.output_path, self.sess.graph)
-
-        self.sess.run(self.update_target_op)
     def initialize(self):
-        #self.add_summary()
+        self.add_summary()
         init = tf.global_variables_initializer()
         self.sess.run(init)
         self.sess.run(self.update_target_op) #sync target
@@ -97,9 +95,9 @@ class DQN_Agent(object):
     def add_placeholders_op(self):
         self.s=tf.placeholder(tf.float32, shape=(None, self.s_dim), name='dqn_s')
         self.a=tf.placeholder(tf.int32, shape=(None), name='dqn_a')
-        self.r=tf.placeholder(tf.float32, shape=(None), name='dqn_r')
+        self.dqn_r=tf.placeholder(tf.float32, shape=(None), name='dqn_r')
         self.sp=tf.placeholder(tf.float32,  shape=(None, self.s_dim), name='dqn_sp')
-        self.done_mask=tf.placeholder(tf.bool, shape=(None, self.s_dim),  name='dqn_done')
+        self.done_mask=tf.placeholder(tf.bool, shape=(None),  name='dqn_done')
         self.lr=tf.placeholder(tf.float32, name='dqn_lr')
         #elf.lr=.002
 
@@ -130,7 +128,7 @@ class DQN_Agent(object):
     
     def add_loss_op(self, q, target_q):
         num_actions = self.a_size**self.a_dim
-        q_samp=self.r +(self.config.gamma*tf.reduce_max(target_q, axis=1))*tf.cast(tf.logical_not(self.done_mask), tf.float32)
+        q_samp=self.dqn_r +(self.config.gamma*tf.reduce_max(target_q, axis=1))*tf.cast(tf.logical_not(self.done_mask), tf.float32)
         action_mask=tf.cast(tf.one_hot(self.a, num_actions, 1, 0), tf.float32)
         self.loss=tf.reduce_mean(tf.square(q_samp-tf.reduce_sum(q * action_mask, axis=1)))
 
@@ -152,13 +150,13 @@ class DQN_Agent(object):
 
         s_batch, a_batch, r_batch, sp_batch, done_mask_batch = data
         print('training a step')
-        print(s_batch)
+        print(r_batch)
 
         fd = {
             # inputs
             self.s: s_batch,
             self.a: a_batch,
-            self.r: r_batch,
+            self.dqn_r: r_batch,
             self.sp: sp_batch, 
             self.done_mask: done_mask_batch,
             self.lr: lr, 
@@ -167,8 +165,7 @@ class DQN_Agent(object):
             self.avg_q_placeholder: 0 #self.avg_q
             }
 
-        loss, grad, summary, _ = self.sess.run([self.loss, self.grad_norm, 
-                                                 self.summary, self.train_op], feed_dict=fd)
+        loss, grad, summary, _ = self.sess.run([self.loss, self.grad_norm, self.summary, self.train_op], feed_dict=fd)
 
 
         return loss, grad, summary
@@ -178,10 +175,8 @@ class DQN_Agent(object):
         print("TRAINING: DQN: lr={},".format(lr))
 
         i = 0
-        print(train_batch)
         for o_train, a_train, r_train, x_train, dx_train, s_hat_train, ai_train, sp_hat_train, d_train in train_batch:
             # Train iteration
-            print("training stuff")
             dataForRl=(s_hat_train, ai_train, r_train, sp_hat_train, d_train)
             loss_train, grad_train, summary_train = self.train_step(dataForRl, lr)
 
