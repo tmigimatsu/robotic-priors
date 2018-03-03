@@ -105,13 +105,14 @@ class DQN_Agent(object):
         #q arch here
         with tf.variable_scope(scope):
             #out = tf.layers.dense(layers.flatten(state), num_actions, activation=None, reuse=reuse, name='fc')
-            hidden= layers.fully_connected(state, 10, activation_fn=tf.nn.relu, reuse=reuse)
-            out= layers.fully_connected(hidden, self.a_size**self.a_dim, activation_fn=None, reuse=reuse)
+            #hidden= layers.fully_connected(layers.flatten(state), 10, activation_fn=tf.nn.relu, reuse=reuse)
+            out= layers.fully_connected(layers.flatten(state), self.a_size**self.a_dim, activation_fn=None, reuse=reuse)
         return out
     def action(self, state, eps):
         #action index to action in [-1, -.5, 0, .5, 1] x[-1, -.5, 0, .5, 1]
         if rand.random() > eps:
-            action_values = self.sess.run(self.q, feed_dict={self.s: [state]})[0]
+            #print(state[0])
+            action_values = self.sess.run(self.q, feed_dict={self.s: state})[0]
             actInd= np.argmax(action_values)
         else:
             actInd=rand.randint(self.a_size**self.a_dim) # rand on 0-4x0-4 U Z
@@ -130,7 +131,8 @@ class DQN_Agent(object):
         num_actions = self.a_size**self.a_dim
         q_samp=self.dqn_r +(self.config.gamma*tf.reduce_max(target_q, axis=1))*tf.cast(tf.logical_not(self.done_mask), tf.float32)
         action_mask=tf.cast(tf.one_hot(self.dqn_a, num_actions, 1, 0), tf.float32)
-        self.dqn_loss=tf.reduce_mean(tf.square(q_samp-tf.reduce_sum(q * action_mask, axis=1)))
+        #self.debug_op=tf.reduce_sum(q * action_mask, axis=3)
+        self.dqn_loss=tf.reduce_mean(tf.square(q_samp-tf.squeeze(tf.reduce_sum(q * action_mask, axis=3))))
 
     def add_optimizer_op(self, scope):
         Adam_Optimizer = tf.train.AdamOptimizer(learning_rate=self.lr)
@@ -149,9 +151,9 @@ class DQN_Agent(object):
 
 
         s_batch, a_batch, r_batch, sp_batch, done_mask_batch = data
-        print('training a step')
-        print(r_batch)
-        print(self.sess.run(self.dqn_r, feed_dict={self.dqn_r: r_batch,}))
+        #print('training a step')
+        #print(r_batch)
+        #print(self.sess.run(self.dqn_r, feed_dict={self.dqn_r: r_batch,}))
         fd = {
             # inputs
             self.s: s_batch,
@@ -164,11 +166,14 @@ class DQN_Agent(object):
             self.avg_reward_placeholder: 0, #self.avg_reward,  
             self.avg_q_placeholder: 0 #self.avg_q
             }
+        #debuging stuff
+        #G=self.sess.run(self.debug_op, feed_dict=fd)
+        #print(G.shape)
 
         loss, grad, _ = self.sess.run([self.dqn_loss, self.grad_norm, self.train_op], feed_dict=fd)
 
 
-        return loss, grad, 
+        return loss, grad
 
     def train_network(self, train_batch, lr):
         min_loss_train = float("inf")
@@ -178,13 +183,13 @@ class DQN_Agent(object):
         for o_train, a_train, r_train, x_train, dx_train, s_hat_train, ai_train, sp_hat_train, d_train in train_batch:
             # Train iteration
             dataForRl=(s_hat_train, ai_train, r_train, sp_hat_train, d_train)
-            loss_train, grad_train, summary_train = self.train_step(dataForRl, lr)
+            loss_train, grad_train = self.train_step(dataForRl, lr)
 
             if i%10==0:
                 self.sess.run(self.update_target_op)
 
 
-            self.train_writer.add_summary(summary_train, i)
+            #self.train_writer.add_summary(summary_train, i)
 
             # if loss_train < min_loss_train:
             #     min_loss_train = loss_train
@@ -192,7 +197,7 @@ class DQN_Agent(object):
             #     with open(os.path.join(self.modeldir, "saved.log"), "w+") as f:
             #         f.write("Iteration: {}, Train loss: {}".format(i, loss_train))
 
-            print("Iteration: {}, DQN Train loss: {},".format(i, loss_train))
+            print("\tIteration: {}, DQN Train loss: {},".format(i, loss_train))
             i += 1
 
 # class REINFORCE_Agent(object, sess):

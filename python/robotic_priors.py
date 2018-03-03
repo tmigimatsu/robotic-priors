@@ -149,7 +149,7 @@ class RoboticPriors:
 
     def train_network(self, train_batch):
         min_loss_train = float("inf")
-
+        print("RP TRAINING")
         i = 0
         for o_train, a_train, r_train, x_train, dx_, s_hat_ , ai_ , sp_ , done_  in train_batch:
             # Train iteration
@@ -161,9 +161,9 @@ class RoboticPriors:
                 min_loss_train = loss_train
                 self.saver.save(self.sess, self.modelpath, global_step=i)
                 with open(os.path.join(self.modeldir, "saved.log"), "w+") as f:
-                    f.write("Iteration: {}, Train loss: {}".format(i, loss_train))
+                    f.write("\tIteration: {}, Train loss: {}".format(i, loss_train))
 
-            print("Iteration: {}, Train loss: {},".format(i, loss_train))
+            print("\tIteration: {}, Train loss: {},".format(i, loss_train))
             i += 1
 
 # Define custom py_func which takes also a grad op as argument:

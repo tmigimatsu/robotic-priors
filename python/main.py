@@ -16,9 +16,9 @@ def wait():
     exit()
 
 if __name__ == "__main__":
-    NUM_EPISODES = 1
-    LEN_EPISODE  = 10
-    NUM_ITERATIONS = 3
+    NUM_EPISODES = 10
+    LEN_EPISODE  = 100
+    NUM_ITERATIONS = 20
 
     # Create thread to kill process (ctrl-c doesn't work?)
     thread = threading.Thread(target=wait, daemon=True)
@@ -42,15 +42,15 @@ if __name__ == "__main__":
 
     for i in range(NUM_ITERATIONS):
 
-        print("Iteration: {}".format(i))
+        print("====Main Iteration: {}====".format(i))
 
         # Generate RL trajectories
         with DataLogger() as d:
             filename = d.filename
-
+            print("Simulate Arm")
             for j in range(NUM_EPISODES):
 
-                print("Episode: {}".format(j))
+                print("\tEpisode: {}".format(j))
 
                 # Get initial observation
                 ob = env.reset()

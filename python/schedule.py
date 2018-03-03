@@ -18,7 +18,5 @@ class LinearSchedule(object):
         if self.val<self.end:
             self.val=self.end
 
-
-
 if __name__ == "__main__":
     pass
