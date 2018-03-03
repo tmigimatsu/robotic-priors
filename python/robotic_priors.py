@@ -43,10 +43,10 @@ class RoboticPriors:
 
     def add_placeholders_op(self):
         # Placeholders
-        self.o = tf.placeholder(tf.float32, [None, self.dim_o], "o")
-        self.a = tf.placeholder(tf.float32, [None, self.dim_a], "a")
-        self.r = tf.placeholder(tf.float32, [None], "r")
-        self.x = tf.placeholder(tf.float32, [None, self.dim_x], "x")
+        self.o = tf.placeholder(tf.float32, [None, self.dim_o], "rp_o")
+        self.a = tf.placeholder(tf.float32, [None, self.dim_a], "rp_a")
+        self.r = tf.placeholder(tf.float32, [None], "rp_r")
+        self.x = tf.placeholder(tf.float32, [None, self.dim_x], "rp_x")
 
     def add_model_op(self):
         dim_h1 = 16

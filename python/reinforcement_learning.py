@@ -74,7 +74,7 @@ class DQN_Agent(object):
         #self.eval_reward_placeholder = tf.placeholder(tf.float32, shape=(), name="eval_reward")
 
         # add placeholders from the graph
-        tf.summary.scalar("loss dqn", self.loss)
+        tf.summary.scalar("loss dqn", self.dqn_loss)
         tf.summary.scalar("grads norm dqn", self.grad_norm)
 
         # extra summaries from python -> placeholders
@@ -83,8 +83,8 @@ class DQN_Agent(object):
         #tf.summary.scalar("Eval Reward DQN", self.eval_reward_placeholder)
             
         # logging
-        self.summary = tf.summary.merge_all()
-        #self.file_writer = tf.summary.FileWriter(self.config.output_path, self.sess.graph)
+        self.dqn_summary = tf.summary.merge_all()
+        self.file_writer = tf.summary.FileWriter(self.logdir, self.sess.graph)
     def initialize(self):
         self.add_summary()
         init = tf.global_variables_initializer()
@@ -94,7 +94,7 @@ class DQN_Agent(object):
     
     def add_placeholders_op(self):
         self.s=tf.placeholder(tf.float32, shape=(None, self.s_dim), name='dqn_s')
-        self.a=tf.placeholder(tf.int32, shape=(None), name='dqn_a')
+        self.dqn_a=tf.placeholder(tf.int32, shape=(None), name='dqn_a')
         self.dqn_r=tf.placeholder(tf.float32, shape=(None), name='dqn_r')
         self.sp=tf.placeholder(tf.float32,  shape=(None, self.s_dim), name='dqn_sp')
         self.done_mask=tf.placeholder(tf.bool, shape=(None),  name='dqn_done')
@@ -129,13 +129,13 @@ class DQN_Agent(object):
     def add_loss_op(self, q, target_q):
         num_actions = self.a_size**self.a_dim
         q_samp=self.dqn_r +(self.config.gamma*tf.reduce_max(target_q, axis=1))*tf.cast(tf.logical_not(self.done_mask), tf.float32)
-        action_mask=tf.cast(tf.one_hot(self.a, num_actions, 1, 0), tf.float32)
-        self.loss=tf.reduce_mean(tf.square(q_samp-tf.reduce_sum(q * action_mask, axis=1)))
+        action_mask=tf.cast(tf.one_hot(self.dqn_a, num_actions, 1, 0), tf.float32)
+        self.dqn_loss=tf.reduce_mean(tf.square(q_samp-tf.reduce_sum(q * action_mask, axis=1)))
 
     def add_optimizer_op(self, scope):
         Adam_Optimizer = tf.train.AdamOptimizer(learning_rate=self.lr)
         var_list = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope)
-        grads_and_vars = Adam_Optimizer.compute_gradients(self.loss, var_list)
+        grads_and_vars = Adam_Optimizer.compute_gradients(self.dqn_loss, var_list)
         if self.config.grad_clip:
             processed_gv=[(tf.clip_by_norm(grad, self.config.clip_val), val) for grad, val in grads_and_vars]
         else:
@@ -151,11 +151,11 @@ class DQN_Agent(object):
         s_batch, a_batch, r_batch, sp_batch, done_mask_batch = data
         print('training a step')
         print(r_batch)
-
+        print(self.sess.run(self.dqn_r, feed_dict={self.dqn_r: r_batch,}))
         fd = {
             # inputs
             self.s: s_batch,
-            self.a: a_batch,
+            self.dqn_a: a_batch,
             self.dqn_r: r_batch,
             self.sp: sp_batch, 
             self.done_mask: done_mask_batch,
@@ -165,10 +165,10 @@ class DQN_Agent(object):
             self.avg_q_placeholder: 0 #self.avg_q
             }
 
-        loss, grad, summary, _ = self.sess.run([self.loss, self.grad_norm, self.summary, self.train_op], feed_dict=fd)
+        loss, grad, _ = self.sess.run([self.dqn_loss, self.grad_norm, self.train_op], feed_dict=fd)
 
 
-        return loss, grad, summary
+        return loss, grad, 
 
     def train_network(self, train_batch, lr):
         min_loss_train = float("inf")
