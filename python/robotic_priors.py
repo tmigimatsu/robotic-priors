@@ -23,7 +23,7 @@ k = {
 class RoboticPriors:
 
     def __init__(self, dim_image):
-        self.dim_o = np.prod(dim_image)
+        self.dim_o = dim_image
         self.dim_x = 2
         self.dim_a = 2
         self.lr = 0.001
@@ -43,7 +43,7 @@ class RoboticPriors:
 
     def add_placeholders_op(self):
         # Placeholders
-        self.o = tf.placeholder(tf.float32, [None, self.dim_o], "rp_o")
+        self.o = tf.placeholder(tf.float32, [None, *self.dim_o], "rp_o")
         self.a = tf.placeholder(tf.float32, [None, self.dim_a], "rp_a")
         self.r = tf.placeholder(tf.float32, [None], "rp_r")
         self.x = tf.placeholder(tf.float32, [None, self.dim_x], "rp_x")
@@ -60,33 +60,37 @@ class RoboticPriors:
         # W2 = tf.get_variable("W2", [dim_h1, dim_x], dtype=tf.float32, initializer=initializer)
         # b1 = tf.get_variable("b1", [dim_h1], dtype=tf.float32, initializer=initializer)
         # b2 = tf.get_variable("b2", [dim_x], dtype=tf.float32, initializer=initializer)
-        W0 = tf.get_variable("W0", [self.dim_o, self.dim_x], dtype=tf.float32, initializer=initializer)
-        b0 = tf.get_variable("b0", [self.dim_o], dtype=tf.float32, initializer=initializer)
+        # W0 = tf.get_variable("W0", [self.dim_o, self.dim_x], dtype=tf.float32, initializer=initializer)
+        # b0 = tf.get_variable("b0", [self.dim_o], dtype=tf.float32, initializer=initializer)
         # # 200 x 150 x 3
-        # conv1 = tf.layers.conv2d(
-        #     inputs=o,
-        #     filters=dim_h1,
-        #     kernel_size=(krn_h1, krn_h1),
-        #     padding="valid",
-        #     strides=(2,2),
-        #     activation=tf.nn.relu,
-        #     name="conv1"
-        # )
-        # # 98 x 73 x 16
-        # pool1 = tf.layers.max_pooling2d(
-        #     inputs=conv1,
-        #     pool_size=(2,2),
-        #     strides=2,
-        #     name="pool1"
-        # )
-        # # 49 x 37 x 16
+        conv1 = tf.layers.conv2d(
+            inputs=self.o,
+            filters=dim_h1,
+            kernel_size=(krn_h1, krn_h1),
+            padding="valid",
+            strides=(2,2),
+            activation=tf.nn.relu,
+            name="conv1"
+        )
+        # 98 x 73 x 16
+        pool1 = tf.layers.max_pooling2d(
+            inputs=conv1,
+            pool_size=(2,2),
+            strides=2,
+            name="pool1"
+        )
+        # 49 x 37 x 16
+        h1 = tf.contrib.layers.flatten(pool1)
+        dim_h1 = 28224
         # h1 = tf.reshape(pool1, [-1, dim_o])
+        W0 = tf.get_variable("W0", [dim_h1, self.dim_x], dtype=tf.float32, initializer=initializer)
+        b0 = tf.get_variable("b0", [self.dim_x], dtype=tf.float32, initializer=initializer)
 
         # Model input and output
         # h1 = tf.nn.relu(tf.matmul(o, W1) + b1)
         # s  = tf.add(tf.matmul(h1, W2), b2, name="s")
-        self.s = tf.matmul(self.o + b0, W0, name="s")
-        # s = tf.add(tf.matmul(h1, W0), b0, name="s")
+        # self.s = tf.matmul(self.o + b0, W0, name="s")
+        self.s = tf.add(tf.matmul(h1, W0), b0, name="s")
 
     def add_loss_op(self):
         # Ground truth loss

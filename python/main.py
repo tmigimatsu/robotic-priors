@@ -17,8 +17,8 @@ def wait():
 
 if __name__ == "__main__":
     NUM_EPISODES = 10
-    LEN_EPISODE  = 100
-    NUM_ITERATIONS = 20
+    LEN_EPISODE  = 1000
+    NUM_ITERATIONS = 100
 
     # Create thread to kill process (ctrl-c doesn't work?)
     thread = threading.Thread(target=wait, daemon=True)
@@ -62,12 +62,14 @@ if __name__ == "__main__":
                 # Generate trajectory
                 for _ in range(LEN_EPISODE):
                     # Query RL policy
-                    s_hat = robotic_priors.evaluate(np.reshape(ob, (1,-1)))
+                    s_hat = robotic_priors.evaluate(ob)
+                    # s_hat = robotic_priors.evaluate(np.reshape(ob, (1,-1)))
                     action, actionInd = agent.action(s_hat, epsLine.val)
 
                     ob, reward, done, info = env.step(action)
                     ob = np.array(ob)[np.newaxis,...]
-                    sp_hat = robotic_priors.evaluate(np.reshape(ob, (1,-1)))
+                    sp_hat = robotic_priors.evaluate(ob)
+                    # sp_hat = robotic_priors.evaluate(np.reshape(ob, (1,-1)))
 
 
                     # Append to trajectory
@@ -102,7 +104,7 @@ if __name__ == "__main__":
 
         # Train represnetation learning
         dataLogDir=robotic_priors.create_logger()
-        robotic_priors_data_generator = batch_data(data=episodes, extra=True, flatten=True)
+        robotic_priors_data_generator = batch_data(data=episodes, extra=True, flatten=False)
         RL_data_generator = batch_data(data=episodes, extra=True, flatten=True)
         robotic_priors.train_network(robotic_priors_data_generator)
         

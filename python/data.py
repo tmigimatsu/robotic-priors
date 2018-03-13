@@ -125,7 +125,10 @@ def batch_data(data=None, size_batch=100, extra=False, filename=None, dataset="a
     if filename is None:
         filename = get_filename(-1)
 
-    mean_observation = get_mean_observation(filename)
+    try:
+        mean_observation = np.load("../resources/mean_observation.npy")
+    except:
+        pass
     f = h5py.File(filename, "r")
 
     episodes = f["episodes"]
@@ -142,30 +145,11 @@ def batch_data(data=None, size_batch=100, extra=False, filename=None, dataset="a
 
     while True:
 
-        if D[0] == 0:
-            o_0 = f["initial_observation"][()].astype(np.float32)
-            if extra:
-                x_0 = np.zeros(2, dtype=np.float32)
-        else:
-            try:
-                o_0 = episodes["{0:05d}/observations".format(D[0]-1)][-1,...].astype(np.float32)
-                if extra:
-                    x_0 = episodes["{0:05d}/xs".format(D[0]-1)][-1,...].astype(np.float32)
-                    x_0 -= np.array([0, -0.45], dtype=np.float32)[np.newaxis,:]
-            except:
-                o_0 = f["initial_observation"][()].astype(np.float32)
-                if extra:
-                    x_0 = np.zeros(2, dtype=np.float32)
-        o_0 = o_0 / 255 - mean_observation
-        if flatten:
-            o_0 = o_0.reshape(-1)
-        o_0 = o_0[np.newaxis,...]
-        o  = [o_0]
+        o  = []
         a  = []
         r  = []
         if extra:
-            x_0 = x_0[np.newaxis,:]
-            x  = [x_0]
+            x  = []
             dx = []
         T = 0
 
@@ -217,13 +201,11 @@ def batch_data(data=None, size_batch=100, extra=False, filename=None, dataset="a
                         yield (o, a, r, x, dx)
                     else:
                         yield (o, a, r)
-                o_0 = o[-1,np.newaxis,...]
-                o  = [o_0]
+                o  = []
                 a  = []
                 r  = []
                 if extra:
-                    x_0 = x[-1,np.newaxis,:]
-                    x  = [x_0]
+                    x  = []
                     dx = []
                 T = 0
 

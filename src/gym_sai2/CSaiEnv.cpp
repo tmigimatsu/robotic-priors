@@ -116,6 +116,9 @@ bool CSaiEnv::step(const double *action, uint8_t *observation, double& reward, d
 	cv_.notify_all();
 
 	// Compute reward
+	// Center: (0, -0.45, 0.55)
+	// Square: (-0.2, -0.65, 0.55) to (0.2, -0.25, 0.55)
+	// Goal:   (-0.2, -0.25, 0.55)
 	if (((x_ - kCenter).array().abs() > kCenterDistance - kWallTolerance).any()) {
 		reward = -1;
 	} else if ((x_ - (kCenter + Eigen::Vector3d(-kCenterDistance, kCenterDistance, 0))).norm() < kCornerDistance) {
