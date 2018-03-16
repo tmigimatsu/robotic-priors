@@ -17,6 +17,8 @@
 *.mod
 *.smod
 
+# Python imported 
+*.pyc
 # Compiled Static libraries
 *.lai
 *.la
