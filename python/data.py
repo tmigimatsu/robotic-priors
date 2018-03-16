@@ -235,7 +235,7 @@ class DataLogger:
     def __init__(self):
         if not os.path.exists("results"):
             os.makedirs("results")
-        self.filename = "results/data-{}.hdf5".format(strftime("%m-%d_%H-%M"), gmtime())
+        self.filename = "results/data-{}.hdf5".format(strftime("%m-%d_%H-%M-%S"), gmtime())
         self.f = h5py.File(self.filename, "w")
 
         self.actions_history = []

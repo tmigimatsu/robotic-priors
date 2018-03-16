@@ -18,7 +18,7 @@ def wait():
 if __name__ == "__main__":
     NUM_EPISODES = 10
     LEN_EPISODE  = 100
-    NUM_ITERATIONS = 20
+    NUM_ITERATIONS = 21
 
     # Create thread to kill process (ctrl-c doesn't work?)
     thread = threading.Thread(target=wait, daemon=True)
