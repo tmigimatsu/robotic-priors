@@ -23,8 +23,7 @@ class RandomAgent(object):
 class DQN_Agent(object):
     
     def __init__(self, env, sess, config, logdir, logger=None):
-
-            
+   
         # store hyper params
         self.config = config
         self.sess=tf.Session() #sess
@@ -200,56 +199,266 @@ class DQN_Agent(object):
             print("\tIteration: {}, DQN Train loss: {},".format(i, loss_train))
             i += 1
 
-# class REINFORCE_Agent(object, sess):
-    
-#     def __init__(self, env, sess, config, logger=None):
 
-#         if not os.path.exists(config.output_path):
-#             os.makedirs(config.output_path)
+class Reinforce_Agent(object):
+  """
+  Abstract Class for implementing a Policy Gradient Based Algorithm
+  """
+  def __init__(self, env, config, dataLogDir,logger=None):
+    """
+    Initialize Policy Gradient Class
+    """
+    self.output_path=dataLogDir
+    if not os.path.exists(self.output_path):
+      os.makedirs(self.output_path)
             
-#         # store hyper params
-#         self.initialize(sess)
-#         self.config = config
-#         self.logger = logger
-#         if logger is None:
-#             self.logger = get_logger(config.log_path)
-#         self.env = env
-#         self.s_dim=2
-#         self.a_dim=2
-#         self.a_size=5
+    # store hyper-params
+    self.config = config
+    # self.logger = logger
+    self.sess=tf.Session()
+    # if logger is None:
+    #   self.logger = get_logger(config.log_path)
+    self.env = env
+  
+    # discrete action space or continuous action space
+    self.discrete = True
+    self.observation_dim = 2
+    self.action_dim = 2
+    
+  
+    self.lr = self.config.learning_rate
+  
+    # build model
+    self.build()
 
-#         # build model
-#         self.build()
+  def build_mlp(self, mlp_input, output_size, scope, n_layers, size, output_activation=None):
+    print(scope)
+    with tf.variable_scope(scope):
+      stackz=layers.fully_connected(inputs=mlp_input, num_outputs=size, activation_fn=tf.nn.relu)
+      for i in range(n_layers-1):
+        stackz=layers.fully_connected(inputs=stackz,  num_outputs=size, activation_fn=tf.nn.relu)
+      out= layers.fully_connected(inputs=stackz,  num_outputs=output_size, activation_fn=output_activation)
+    return out 
+  
+  def add_placeholders_op(self):
+    self.observation_placeholder =tf.placeholder(tf.float32, shape=(None,self.observation_dim), name="obs") 
+    #continous action distribution s
+    self.action_placeholder = tf.placeholder(tf.float32, shape=(None, self.action_dim), name='action')  
+  
+    # Define a placeholder for advantages
+    self.advantage_placeholder = tf.placeholder(tf.float32, shape=(None), name='adv' )
+  
+  def build_policy_network_op(self, scope = "policy_network"):
+    
+    action_means =self.build_mlp(self.observation_placeholder, self.action_dim, scope,
+                    self.config.n_layers,
+                    self.config.layer_size) 
 
-#     def build(self):
-#         # add placeholders
-#         self.add_placeholders_op()
+    log_std = tf.get_variable(shape=self.action_dim, name='log_std') # TODO 
+    self.sampled_action = action_means+ tf.multiply(tf.random_normal(shape=[self.action_dim], mean=0, stddev=1), tf.exp(log_std))   # TODO 
+    mvg=tf.contrib.distributions.MultivariateNormalDiag(action_means, tf.exp(log_std))
+    self.logprob = mvg.log_prob(self.action_placeholder)
 
-#         # compute Q values of state
-#         s = self.process_state(self.s)
-#         self.q = self.get_q_values_op(s, scope="q", reuse=False)
+  def add_loss_op(self):
+    self.loss = -tf.reduce_mean(self.logprob*self.advantage_placeholder)
+  def add_optimizer_op(self):
+    self.train_op = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.loss)
+  
+  def add_baseline_op(self, scope = "baseline"):
 
-#         # compute Q values of next state
-#         sp = self.process_state(self.sp)
-#         self.target_q = self.get_q_values_op(sp, scope="target_q", reuse=False)
+    self.baseline = self.build_mlp(self.observation_placeholder, 1, scope,
+                    self.config.n_layers, self.config.layer_size) # TODO
+    self.baseline_target_placeholder = tf.placeholder(tf.float32, shape=(None), name="baseline" )
+    self.baselineLoss=tf.losses.mean_squared_error(labels=self.baseline_target_placeholder, predictions=self.baseline)
+    self.update_baseline_op =tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.baselineLoss) # TODO
 
-#         # add update operator for target network
-#         self.add_update_target_op("q", "target_q")
+  def build(self):
+    #build graph
+    # add placeholders
+    self.add_placeholders_op()
+    # create policy net
+    self.build_policy_network_op()
+    # add square loss
+    self.add_loss_op()
+    # add optmizer for the main networks
+    self.add_optimizer_op()
+  
+    if self.config.use_baseline:
+      self.add_baseline_op()
 
-#         # add square loss
-#         self.add_loss_op(self.q, self.target_q)
+    self.initialize()
+  
+  def initialize(self):
+    # create tf session
+    self.sess = tf.Session()
+    # tensorboard stuff
+    self.add_summary()
+    # initiliaze all variables
+    init = tf.global_variables_initializer()
+    self.sess.run(init)
+  
+  def add_summary(self):
+    
+    # extra placeholders to log stuff from python
+    self.avg_reward_placeholder = tf.placeholder(tf.float32, shape=(), name="avg_reward")
+    self.max_reward_placeholder = tf.placeholder(tf.float32, shape=(), name="max_reward")
+    self.std_reward_placeholder = tf.placeholder(tf.float32, shape=(), name="std_reward")
+  
+    self.eval_reward_placeholder = tf.placeholder(tf.float32, shape=(), name="eval_reward")
+  
+    # extra summaries from python -> placeholders
+    tf.summary.scalar("Avg Reward 10kbatch", self.avg_reward_placeholder)
+    tf.summary.scalar("Max Reward 10kbatch", self.max_reward_placeholder)
+    tf.summary.scalar("Std Reward 10kbatch", self.std_reward_placeholder)
+    tf.summary.scalar("Eval Reward 10kbatch", self.eval_reward_placeholder)
+            
+    # logging
+    self.merged = tf.summary.merge_all()
+    self.file_writer = tf.summary.FileWriter(self.output_path,self.sess.graph) 
 
-#         # add optmizer for the main networks
-#         self.add_optimizer_op("q")
+  def init_averages(self):
 
-#         self.sess.run(self.update_target_op)
-#     def initialize(self, sess):
-#         self.sess = sess
-#         #self.add_summary()
-#         init = tf.global_variables_initializer()
-#         self.sess.run(init)
-#         self.sess.run(self.update_target_op) #sync target
-#         #self.saver = tf.train.Saver()
+    self.avg_reward = 0.
+    self.max_reward = 0.
+    self.std_reward = 0.
+    self.eval_reward = 0.
+  
+  def update_averages(self, rewards, scores_eval):
+    
+    self.avg_reward = np.mean(rewards)
+    self.max_reward = np.max(rewards)
+    self.std_reward = np.sqrt(np.var(rewards) / len(rewards))
+  
+    if len(scores_eval) > 0:
+      self.eval_reward = scores_eval[-1]
+  
+  def record_summary(self, t):
+  
+    fd = {
+      self.avg_reward_placeholder: self.avg_reward, 
+      self.max_reward_placeholder: self.max_reward, 
+      self.std_reward_placeholder: self.std_reward, 
+      self.eval_reward_placeholder: self.eval_reward, 
+    }
+    summary = self.sess.run(self.merged, feed_dict=fd)
+    # tensorboard stuff
+    self.file_writer.add_summary(summary, t)
+ 
+  def action(self, state, eps ):
+    if rand.random()>eps:
+      action = self.sess.run(self.sampled_action, feed_dict={self.observation_placeholder : state})[0]
+    else:
+      action=rand.random(2)*2-1
+    sat=np.array([1,1])
+    return np.clip(action, -sat, sat)
+  
+  def sample_path(self, env, num_episodes = None): 
+    episode = 0
+    episode_rewards = []
+    paths = []
+    t = 0
+    while (num_episodes or t < self.config.batch_size):
+      state = env.reset()
+      states, actions, rewards = [], [], []
+      episode_reward = 0
+  
+      for step in range(self.config.max_ep_len):
+        states.append(state)
+        action = action(self, state)
+        print(action)
+        state, reward, done, info = env.step(action)
+        actions.append(action)
+        rewards.append(reward)
+        episode_reward += reward
+        t += 1
+        if (done or step == self.config.max_ep_len-1):
+          episode_rewards.append(episode_reward)  
+          break
+        if (not num_episodes) and t == self.config.batch_size:
+          break
+  
+      path = {"observation" : np.array(states), 
+                      "reward" : np.array(rewards), 
+                      "action" : np.array(actions)}
+      paths.append(path)
+      episode += 1
+      if num_episodes and episode >= num_episodes:
+        break        
+  
+    return paths, episode_rewards
+  
+  def get_returns(self, paths):
+    
+    all_returns = []
+    for path in paths:
+      rewards = path["reward"]
+      path_returns = [sum([r*config.gamma**i for i,r in enumerate(rewards[n:])]) for n in range(len(rewards))]  # TODO
+      all_returns.append(path_returns)
+    returns = np.concatenate(all_returns)
+  
+    return returns
+  
+  def calculate_advantage(self, returns, observations):
+    
+    adv = returns
+    if self.config.use_baseline:
+      adv=returns-self.sess.run(self.baseline, feed_dict={self.observation_placeholder: observations})
+    
+    if self.config.normalize_advantage:
+      adv=(adv-np.mean(adv))/np.std(adv)
+    return adv
+  
+  
+  def update_baseline(self, returns, observations):
+    self.sess.run(self.update_baseline_op, feed_dict={self.observation_placeholder: observations, 
+                                                      self.baseline_target_placeholder: returns }) # TODO
+  
+  def train_network(self, paths):
+    #last_eval = 0 
+    #last_record = 0
+    #scores_eval = []
+    
+    #self.init_averages()
+    #scores_eval = [] # list of scores computed at iteration time
+    print("TRAINING: PG")
+    for t in range(1):
+  
+      # collect a minibatch of samples
+      #paths, total_rewards = self.sample_path(self.env) 
+      #scores_eval = scores_eval + total_rewards
+      observations = np.concatenate([path["observation"] for path in paths])
+      actions = np.concatenate([path["action"] for path in paths])
+      rewards = np.concatenate([path["reward"] for path in paths])
+      total_rewards=[sum(path["reward"]) for path in paths]
+      # compute Q-val estimates (discounted future returns) for each time step
+      returns = self.get_returns(paths)
+      advantages = self.calculate_advantage(returns, observations)
+
+      # run training operations
+      if self.config.use_baseline:
+        self.update_baseline(returns, observations)
+      self.sess.run(self.train_op, feed_dict={
+                    self.observation_placeholder : observations, 
+                    self.action_placeholder : actions, 
+                    self.advantage_placeholder : advantages})
+  
+      # tf stuff
+      # if (t % self.config.summary_freq == 0):
+      #   self.update_averages(total_rewards, scores_eval)
+      #   self.record_summary(t)
+
+      # compute reward statistics for this batch and log
+      avg_reward = np.mean(total_rewards)
+      sigma_reward = np.sqrt(np.var(total_rewards) / len(total_rewards))
+      print("Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward))
+      #self.logger.info(msg)
+  
+    #   if  self.config.record and (last_record > self.config.record_freq):
+    #     self.logger.info("Recording...")
+    #     last_record =0
+    #     self.record()
+  
+    # self.logger.info("- Training done.")
 
 
 if __name__ == "__main__":

@@ -6,8 +6,9 @@ import gym_sai2
 import numpy as np
 from data import *
 from robotic_priors import *
-from reinforcement_learning import DQN_Agent
-from configs.dqn import config
+from reinforcement_learning import DQN_Agent, Reinforce_Agent
+#from configs.dqn import config
+from configs.pg import config
 from schedule import LinearSchedule
 import threading
 
@@ -36,8 +37,9 @@ if __name__ == "__main__":
     sess=robotic_priors.sess #get session
 
     # Reinforcement learning agent
-    agent = DQN_Agent(env, sess, config, dataLogDir, logger=None)
-    lrLine=LinearSchedule(config.lr_begin, config.lr_end, 20/2)
+    #agent = DQN_Agent(env, sess, config, dataLogDir, logger=None)
+    agent = Reinforce_Agent(env, config, dataLogDir, None)
+    #lrLine=LinearSchedule(config.lr_begin, config.lr_end, 20/2)
     epsLine=LinearSchedule(config.eps_begin, config.eps_end, 20/2)
 
     for i in range(NUM_ITERATIONS):
@@ -63,8 +65,9 @@ if __name__ == "__main__":
                 for _ in range(LEN_EPISODE):
                     # Query RL policy
                     s_hat = robotic_priors.evaluate(np.reshape(ob, (1,-1)))
-                    action, actionInd = agent.action(s_hat, epsLine.val)
-
+                    #action, actionInd = agent.action(s_hat, epsLine.val) #dqn
+                    action = agent.action(s_hat, epsLine.val) #pg
+                    actionInd=0
                     ob, reward, done, info = env.step(action)
                     ob = np.array(ob)[np.newaxis,...]
                     sp_hat = robotic_priors.evaluate(np.reshape(ob, (1,-1)))
@@ -104,12 +107,15 @@ if __name__ == "__main__":
         dataLogDir=robotic_priors.create_logger()
         robotic_priors_data_generator = batch_data(data=episodes, extra=True, flatten=True)
         RL_data_generator = batch_data(data=episodes, extra=True, flatten=True)
+        paths =d.flushPaths() #get paths for training pg
         robotic_priors.train_network(robotic_priors_data_generator)
         
-        if (i>1) and (i%2==0):
-            agent.train_network(RL_data_generator, lrLine.val)
-            lrLine.update(i)
-            epsLine.update(i)
+        if (i>1) and (i%5==0):
+            robotic_priors.train_network(robotic_priors_data_generator)
+            #agent.train_network(RL_data_generator, lrLine.val)
+        agent.train_network(paths)
+        #lrLine.update(i)
+        epsLine.update(i)
 
      
 

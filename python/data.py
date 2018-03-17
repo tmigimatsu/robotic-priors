@@ -248,6 +248,7 @@ class DataLogger:
         self.aInds_states_history = []
         self.sp_hats_states_history = []
         self.donemasks_states_history = []
+        self.paths=[]
 
     def log_initial_observation(self, initial_observation):
         dset = self.f.create_dataset("initial_observation", initial_observation.shape, dtype=initial_observation.dtype)
@@ -276,7 +277,11 @@ class DataLogger:
         dset = grp.create_dataset("donemasks", donemasks.shape, dtype=donemasks.dtype)
         dset[...] = donemasks
 
-
+        #make paths
+        path = {"observation" : np.array(learned_states), 
+                      "reward" : np.array(rewards), 
+                      "action" : np.array(actions)}
+        self.paths.append(path)
 
 
         # Add to history
@@ -319,6 +324,13 @@ class DataLogger:
         self.f.flush()
 
         return actions, observations, rewards, xs, dxs, learned_states, aInds, sp_hats, donemasks
+    def flushPaths(self):
+        paths=self.paths
+        self.paths=[]
+
+        return paths
+
+
 
     def __enter__(self):
         return self
