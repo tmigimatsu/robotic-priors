@@ -182,7 +182,10 @@ class DQN_Agent(object):
         i = 0
         for o_train, a_train, r_train, x_train, dx_train, s_hat_train, ai_train, sp_hat_train, d_train in train_batch:
             # Train iteration
-            dataForRl=(s_hat_train, ai_train, r_train, sp_hat_train, d_train)
+            #dataForRl=(s_hat_train, ai_train, r_train, sp_hat_train, d_train)
+            #print(dx_train)
+            #print(x_train)
+            dataForRl=(dx_train, ai_train, r_train, x_train, d_train) #dx is start state and x is next state, yes it's dumb, but it's the fastest way to get it to run
             loss_train, grad_train = self.train_step(dataForRl, lr)
 
             if i%10==0:
