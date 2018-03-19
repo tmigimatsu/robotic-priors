@@ -12,15 +12,11 @@ class config():
     record_freq = 5
     summary_freq = 1
 
-    nsteps_train       = 20
-    eps_begin          = 1.0
-    eps_end            = 0.01
-    eps_nsteps         = nsteps_train/2
     
     # model and training config
     num_batches = 100 # number of batches trained on 
-    batch_size = 1000 # number of steps used to compute each policy update
-    max_ep_len = 1000 # maximum episode length
+    batch_size = 100 # number of steps used to compute each policy update
+    max_ep_len = 2000 # maximum episode length
     learning_rate = 3e-2
     gamma              = .99 # the discount factor
     use_baseline = True
