@@ -217,7 +217,7 @@ class DataLogger:
     def __init__(self):
         if not os.path.exists("results"):
             os.makedirs("results")
-        self.filename = "results/data-{}.hdf5".format(strftime("%m-%d_%H-%M"), gmtime())
+        self.filename = "results/data-{}.hdf5".format(strftime("%m-%d_%H-%M-%S"), gmtime())
         self.f = h5py.File(self.filename, "w")
 
         self.actions_history = []
@@ -272,19 +272,53 @@ class DataLogger:
         self.sp_hats_states_history.append(sp_hats)
         self.donemasks_states_history.append(donemasks)
 
+    def repeat(self):
+        try:
+            self.rep_actions_history += self.actions_history
+            self.rep_observations_history += self.observations_history
+            self.rep_rewards_history += self.rewards_history
+            self.rep_xs_history += self.xs_history
+            self.rep_dxs_history += self.dxs_history
+            self.rep_learned_states_history += self.learned_states_history
+            self.rep_aInds_states_history += self.aInds_states_history
+            self.rep_sp_hats_states_history += self.sp_hats_states_history
+            self.rep_donemasks_states_history += self.donemasks_states_history
+        except:
+            self.rep_actions_history = self.actions_history
+            self.rep_observations_history = self.observations_history
+            self.rep_rewards_history = self.rewards_history
+            self.rep_xs_history = self.xs_history
+            self.rep_dxs_history = self.dxs_history
+            self.rep_learned_states_history = self.learned_states_history
+            self.rep_aInds_states_history = self.aInds_states_history
+            self.rep_sp_hats_states_history = self.sp_hats_states_history
+            self.rep_donemasks_states_history = self.donemasks_states_history
+
+        idx = np.random.permutation(len(self.rep_actions_history))
+        actions = [self.rep_actions_history[i] for i in idx]
+        observations = [self.rep_observations_history[i] for i in idx]
+        rewards = [self.rep_rewards_history[i] for i in idx]
+        xs = [self.rep_xs_history[i] for i in idx]
+        dxs = [self.rep_dxs_history[i] for i in idx]
+        learned_states = [self.rep_learned_states_history[i] for i in idx]
+        aInds= [self.rep_aInds_states_history[i] for i in idx]
+        sp_hats= [self.rep_sp_hats_states_history[i] for i in idx]
+        donemasks= [self.rep_donemasks_states_history[i] for i in idx]
+        return actions, observations, rewards, xs, dxs, learned_states, aInds, sp_hats, donemasks
 
 
     def flush(self):
 
-        actions = self.actions_history
-        observations = self.observations_history
-        rewards = self.rewards_history
-        xs = self.xs_history
-        dxs = self.dxs_history
-        learned_states = self.learned_states_history
-        aInds= self.aInds_states_history
-        sp_hats= self.sp_hats_states_history
-        donemasks= self.donemasks_states_history
+        idx = np.random.permutation(len(self.actions_history))
+        actions = [self.actions_history[i] for i in idx]
+        observations = [self.observations_history[i] for i in idx]
+        rewards = [self.rewards_history[i] for i in idx]
+        xs = [self.xs_history[i] for i in idx]
+        dxs = [self.dxs_history[i] for i in idx]
+        learned_states = [self.learned_states_history[i] for i in idx]
+        aInds= [self.aInds_states_history[i] for i in idx]
+        sp_hats= [self.sp_hats_states_history[i] for i in idx]
+        donemasks= [self.donemasks_states_history[i] for i in idx]
 
 
 

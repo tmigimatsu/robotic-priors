@@ -33,7 +33,7 @@ class DQN_Agent(object):
         self.env = env
         self.s_dim=2
         self.a_dim=2
-        self.a_size=5
+        self.a_size=7
 
         # build model
         self.build()
@@ -104,9 +104,9 @@ class DQN_Agent(object):
     def get_q_values_op(self, state, scope, reuse=False):
         #q arch here
         with tf.variable_scope(scope):
-            #out = tf.layers.dense(layers.flatten(state), num_actions, activation=None, reuse=reuse, name='fc')
-            #hidden= layers.fully_connected(layers.flatten(state), 10, activation_fn=tf.nn.relu, reuse=reuse)
-            out= layers.fully_connected(layers.flatten(state), self.a_size**self.a_dim, activation_fn=None, reuse=reuse)
+            hidden= layers.fully_connected(layers.flatten(state), 2*self.a_size**self.a_dim, activation_fn=tf.nn.relu, reuse=reuse)
+            out= layers.fully_connected(hidden, self.a_size**self.a_dim, activation_fn=tf.nn.relu, reuse=reuse)
+            # out= layers.fully_connected(layers.flatten(state), self.a_size**self.a_dim, activation_fn=None, reuse=reuse)
         return out
     def action(self, state, eps):
         #action index to action in [-1, -.5, 0, .5, 1] x[-1, -.5, 0, .5, 1]

@@ -11,13 +11,13 @@ k = {
     "epsilon_a": 0.01,
     "epsilon_r": 0.01,
     "range_W": 0.05,
-    "w_temp": 10,
+    "w_temp": 5,
     "w_prop": 1,
-    "w_caus": 1,
+    "w_caus": 5,
     "w_rep": 5,
     "lambda": 0.0025,
     "dim_s": 2,
-    "num_pair_samples": 100
+    "num_pair_samples": 10
 }
 
 class RoboticPriors:
@@ -26,7 +26,7 @@ class RoboticPriors:
         self.dim_o = dim_image
         self.dim_x = 2
         self.dim_a = 2
-        self.lr = 0.001
+        self.lr = 0.0001
 
         self.w_temp = 5
         self.w_prop = 1

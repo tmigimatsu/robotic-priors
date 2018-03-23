@@ -6,7 +6,7 @@ import gym_sai2
 import numpy as np
 from data import *
 from robotic_priors import *
-from reinforcement_learning import DQN_Agent
+from reinforcement_learning import DQN_Agent, RandomAgent
 from configs.dqn import config
 from schedule import LinearSchedule
 import threading
@@ -17,8 +17,8 @@ def wait():
 
 if __name__ == "__main__":
     NUM_EPISODES = 10
-    LEN_EPISODE  = 1000
-    NUM_ITERATIONS = 100
+    LEN_EPISODE  = 100
+    NUM_ITERATIONS = 20
 
     # Create thread to kill process (ctrl-c doesn't work?)
     thread = threading.Thread(target=wait, daemon=True)
@@ -37,16 +37,17 @@ if __name__ == "__main__":
 
     # Reinforcement learning agent
     agent = DQN_Agent(env, sess, config, dataLogDir, logger=None)
+    random_agent = RandomAgent(env.action_space)
     lrLine=LinearSchedule(config.lr_begin, config.lr_end, 20/2)
     epsLine=LinearSchedule(config.eps_begin, config.eps_end, 20/2)
 
-    for i in range(NUM_ITERATIONS):
+    idx_episode = 0
+    with DataLogger() as d:
+        for i in range(NUM_ITERATIONS):
 
-        print("====Main Iteration: {}====".format(i))
+            print("====Main Iteration: {}====".format(i))
 
-        # Generate RL trajectories
-        with DataLogger() as d:
-            filename = d.filename
+            # Generate RL trajectories
             print("Simulate Arm")
             for j in range(NUM_EPISODES):
 
@@ -97,21 +98,22 @@ if __name__ == "__main__":
                 donemasks=np.row_stack(donemasks)
 
                 # Log data
-                d.log(j, actions, observations, rewards, xs, dxs, learned_states,aInds, sp_hats, donemasks) # Negin added aindex,.... 
+                d.log(idx_episode, actions, observations, rewards, xs, dxs, learned_states,aInds, sp_hats, donemasks) # Negin added aindex,.... 
+                idx_episode += 1
 
             # Get list of actions, observations, rewards, xs, dxs, learned_states from all episodes
+            rep_episodes = d.repeat()
             episodes = d.flush()
 
-        # Train represnetation learning
-        dataLogDir=robotic_priors.create_logger()
-        robotic_priors_data_generator = batch_data(data=episodes, extra=True, flatten=False)
-        RL_data_generator = batch_data(data=episodes, extra=True, flatten=True)
-        robotic_priors.train_network(robotic_priors_data_generator)
-        
-        if (i>1) and (i%2==0):
-            agent.train_network(RL_data_generator, lrLine.val)
-            lrLine.update(i)
-            epsLine.update(i)
+            # Train represnetation learning
+            RL_data_generator = batch_data(data=episodes, extra=True, flatten=True)
+            robotic_priors_data_generator = batch_data(data=rep_episodes, extra=True, flatten=False)
+            robotic_priors.train_network(robotic_priors_data_generator)
+            
+            if (i>1) and (i%2==0):
+                agent.train_network(RL_data_generator, 0.005)
+                lrLine.update(i)
+                epsLine.update(i)
 
      
 
